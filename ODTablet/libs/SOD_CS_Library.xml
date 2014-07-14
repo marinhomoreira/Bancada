@@ -1,0 +1,147 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>SOD_CS_Library</name>
+    </assembly>
+    <members>
+        <member name="M:SOD_CS_Library.Device.SetDeviceInformation(System.Double,System.Double,System.Double,System.Double,System.Double,System.String,System.Boolean)">
+            <summary>
+            Helper function to define some of the more important information for the device.
+            </summary>
+            <param name="width">Width of the device, in mm</param>
+            <param name="height">Height of the device, in mm</param>
+            <param name="locationX">X coordinate of the location of device</param>
+            <param name="locationY">Y coordinate of the location of device (not used until 3D implementation)</param>
+            <param name="locationZ">Z coordinate of the location of device</param>
+            <param name="deviceType">Type of the device, eg. "table"</param>
+            <param name="stationary">Whether the device is stationary, determines if orientation data is relevant</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.#ctor(System.String,System.Int32)">
+            <summary>
+            Create socket client using IP and port provided by user, then subscribe to Socket.IO events.
+            </summary>
+            <param name="IP">IP address of the server</param>
+            <param name="port">Port number of the server, usually 3000</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SocketConnect">
+            <summary>
+            Connect the socket to the server (using the IP and port provided in constructor)
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.RegisterDevice">
+            <summary>
+            Register the device with server.
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SocketError(System.Object,SocketIOClient.ErrorEventArgs)">
+            <summary>
+            Error event
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SocketConnectionClosed(System.Object,System.EventArgs)">
+            <summary>
+            Connection closed event
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SocketMessage(System.Object,SocketIOClient.MessageEventArgs)">
+            <summary>
+            Event handler for any unhandled events
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SocketOpened(System.Object,System.EventArgs)">
+            <summary>
+            Connection opened event
+            </summary>
+            <param name="sender"></param>
+            <param name="e"></param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.Close">
+            <summary>
+            Close socket connection, dispose of event handlers, then dispose socket itself.
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.ReconnectToServer">
+            <summary>
+            Check if socket is connected, and if it's not, attempt to reconnect
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.GetAllTrackedPeople(System.Action{System.Collections.Generic.List{SOD_CS_Library.Person}})">
+            <summary>
+            Returns a list of all people tracked by the server,  passed as an argument to the specified callback.
+            </summary>
+            <param name="completionCB">Code block to be executed once list is returned, since server is asynchronous</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.GetDevicesWithSelection(System.String,System.Action{System.Collections.Generic.List{SOD_CS_Library.Device}})">
+            <summary>
+            Returns a list of devices specified in "selection", passed as an argument to the specified callback.
+            </summary>
+            <param name="selection">Devices must with this criteria to be returned in the list (eg. "all", "inView")</param>
+            <param name="completionCB">Code block to be executed once list is returned, since server is asynchronous</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.GetDeviceByID(System.Int32,System.Action{SOD_CS_Library.Device})">
+            <summary>
+            Returns a device with specified ID, if it exists, passed as an argument to the specified callback.
+            </summary>
+            <param name="ID">ID of the device to be searched for</param>
+            <param name="completionCB">Code block to be executed once list is returned, since server is asynchronous</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.UnpairDevice">
+            <summary>
+            Tell server to unpair this device
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.UnpairAllDevices">
+            <summary>
+            Tell server to unpair all devices, used mainly for testing/debugging
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.UnpairAllPeople">
+            <summary>
+            Tell server to unpair all people, used mainly for testing/debugging
+            </summary>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SendStringToDevices(System.String,System.String[])">
+            <summary>
+            Sends a string to all devices in "selection"
+            </summary>
+            <param name="stringToSend">The string to be sent to the target devices</param>
+            <param name="selection">Devices must with this criteria to be returned in the list (eg. "all", "inView")</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SendDictionaryToDevices(System.Collections.Generic.Dictionary{System.String,System.String},System.String[])">
+            <summary>
+            Sends a dictionary to all devices in "selection"
+            </summary>
+            <param name="dictionaryToSend">The dictionary to be sent to the target devices</param>
+            <param name="selection">Devices must with this criteria to be returned in the list (eg. "all", "inView")</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.RequestDataFromSelection(System.String,System.String[])">
+            <summary>
+            Send a request to one or more devices, defined by "selection".  Event "requestedData" should be handled to receive the data.
+            </summary>
+            <param name="requestName">Name of the data you want from each target device</param>
+            <param name="selection">Devices must with this criteria to be returned in the list (eg. "all", "inView")</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.SendAcknowledgementWithPID(System.Int32,System.Object)">
+            <summary>
+            Since SocketIO4Net does not implement an acknowledge method, we implement our own. We create a new message of type AckMessage,
+            defining the ackID and the data/msg to be sent. The ackID is necessary for the server to match an acknowledge with the original message
+            being acknowledged (and therefore execute the correct callback)
+            </summary>
+            <param name="PID">ID of the original message, also the ID used as acknowledge ID</param>
+            <param name="data">data/msg/object to be sent back as a reply</param>
+        </member>
+        <member name="M:SOD_CS_Library.SOD.ParseMessageIntoDictionary(SocketIOClient.Messages.IMessage)">
+            <summary>
+            Helper function to parse an incoming message into meaningful parts (ie. name, data, PID)
+            </summary>
+            <param name="msg">The raw message received from server as part of the event, which should be parsed by this method.</param>
+            <returns>A dictionary containing the event name, the data received, and the message ID (used for reply/acknowledge)</returns>
+        </member>
+    </members>
+</doc>

@@ -5,10 +5,36 @@
         xmlns:esri="http://schemas.esri.com/arcgis/client/2009"
         xmlns:local="clr-namespace:ODTablet"
         >
-    <Grid x:Name="LayoutRoot" Background="White">
-        <esri:Map x:Name="MyMap" Extent="-12698770.20, 6629884.68,-12696155.45, 6628808.53" IsLogoVisible="False" ExtentChanging="MyMap_ExtentChanging" >
-            <esri:ArcGISTiledMapServiceLayer ID="StreetMapLayer" Url="http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" x:Name="BaseMap" />
+    <Grid x:Name="LayoutRoot" >
+        <Grid.Resources>
+            <LinearGradientBrush x:Key="PanelGradient" EndPoint="0.5,1" StartPoint="0.5,0">
+                <LinearGradientBrush.RelativeTransform>
+                    <TransformGroup>
+                        <ScaleTransform CenterY="0.5" CenterX="0.5"/>
+                        <SkewTransform CenterY="0.5" CenterX="0.5"/>
+                        <RotateTransform Angle="176" CenterY="0.5" CenterX="0.5"/>
+                        <TranslateTransform/>
+                    </TransformGroup>
+                </LinearGradientBrush.RelativeTransform>
+                <GradientStop Color="#FF145787"/>
+                <GradientStop Color="#FF3D7FAC" Offset="0.184"/>
+                <GradientStop Color="#FF88C5EF" Offset="0.984"/>
+            </LinearGradientBrush>
+        </Grid.Resources>
+
+        <esri:Map x:Name="MyMap" WrapAround="False" IsLogoVisible="False" ExtentChanging="MyMap_ExtentChanging">
         </esri:Map>
+        
+        <StackPanel>
+            <Button Content="Zoom mode" HorizontalAlignment="Left" Width="75" Click="Zoom_Click"/>
+            <Button Content="Heat map" HorizontalAlignment="Left" Width="75" Click="Heatmap_Click"/>
+            <Button Content="Outline" HorizontalAlignment="Left" Width="75" Click="Outline_Click"/>
+            <Button Content="Clear map" HorizontalAlignment="Left" Width="75" Click="ClearMap_Click"/>
+        </StackPanel>
+        
+        <StackPanel Name="ModeStack" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+        </StackPanel>
+
     </Grid>
 
 </Window>

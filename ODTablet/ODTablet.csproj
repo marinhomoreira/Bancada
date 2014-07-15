@@ -37,6 +37,7 @@
     <Reference Include="ESRI.ArcGIS.Client, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL" />
     <Reference Include="ESRI.ArcGIS.Client.Behaviors, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL" />
     <Reference Include="ESRI.ArcGIS.Client.Toolkit, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL" />
+    <Reference Include="ESRI.ArcGIS.Client.Toolkit.DataSources, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL" />
     <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\GitHub\SoD_CS_Library\SOD_CS_Library\SOD_CS_Library\bin\Debug\Newtonsoft.Json.dll</HintPath>

@@ -18,6 +18,7 @@ using System.Windows.Shapes;
 using ESRI.ArcGIS.Client;
 
 using SOD_CS_Library;
+using ESRI.ArcGIS.Client.Toolkit.DataSources;
 
 namespace ODTablet
 {
@@ -28,15 +29,38 @@ namespace ODTablet
     {
         SOD SoD;
 
+        private string WorldStreetMapUrl = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer";
+
+        
+
+        private string CanadaExtent = "-16133214.9413533,5045906.11392677,-5418285.97972558,10721470.048289";
+        private string CalgaryExtent = "-12698770.20, 6629884.68,-12696155.45, 6628808.53";
+
+        private string zoom_map_initial_extent, zoom_map_url,
+            heatmap_url, heatmap_initial_extent,
+            outline_url, outline_initial_extent;
+
         public MainWindow()
         {
             InitializeComponent();
             ConfigureSoD();
             ConfigureDevice();
             RegisterSoDEvents();
+
+            // setting modes' urls
+            zoom_map_url = WorldStreetMapUrl;
+            zoom_map_initial_extent = CanadaExtent;
+
+            heatmap_url = WorldStreetMapUrl;
+            heatmap_initial_extent = CanadaExtent;
+
+            outline_url = WorldStreetMapUrl;
+            outline_initial_extent = CanadaExtent;
+
+            InitializeZoomMap(); //it only works if it's initialized, otherwise, need two clicks to show the map! wtf?
         }
 
-
+        # region SoD
         private void ConfigureSoD()
         {
             // Configure and instantiate SOD object
@@ -85,12 +109,182 @@ namespace ODTablet
             SoD.SocketConnect();
         }
 
+        # endregion
+
+
+
+
         private void MyMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
-            //Console.WriteLine(e.NewExtent.ToString());
-            //send extent
-            string stringToSend = e.NewExtent.ToString();
-            SoD.SendStringToDevices(stringToSend, "all");
+            SendExtentToAllDevices(e.NewExtent.ToString());
         }
+        
+        private void SendExtentToAllDevices(string extentString)
+        {
+            SoD.SendStringToDevices(extentString, "all");
+        }
+        
+        private void ClearMap()
+        {
+            Console.WriteLine("Cleaning map...");
+            MyMap.Layers.LayersInitialized -= AddHeatMapLayers_LayersInitialized;
+            MyMap.Layers.Clear();
+            ModeStack.Children.Clear();
+        }
+
+        private void ClearMap_Click(object sender, RoutedEventArgs e)
+        {
+            ClearMap();
+        }
+
+
+
+        # region Extent
+
+        private double[] ExtentStringToArray(string extent)
+        {
+            return Array.ConvertAll(extent.Split(','), Double.Parse);
+        }
+
+        # endregion
+
+
+        # region Zoom
+
+        private double currentFactor = 0;
+        
+        private void InitializeZoomMap()
+        {
+            Console.WriteLine("Initializing Zoom Map...");
+            ArcGISTiledMapServiceLayer zoomLayer = new ArcGISTiledMapServiceLayer { Url = zoom_map_url };
+            MyMap.Layers.Add(zoomLayer);
+
+            currentFactor = 1;
+            
+            double[] extentPoints = ExtentStringToArray(zoom_map_initial_extent);
+
+            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
+            myEnvelope.XMin = extentPoints[0];
+            myEnvelope.YMin = extentPoints[1];
+            myEnvelope.XMax = extentPoints[2];
+            myEnvelope.YMax = extentPoints[3];
+            MyMap.Extent = myEnvelope;
+
+            SendExtentToAllDevices(MyMap.Extent.ToString());
+            AddZoomButtons();
+        }
+
+        private void AddZoomButtons()
+        {
+            ModeStack.Children.Add(CreateZoomButton("8x", Zoom8_Click));
+            ModeStack.Children.Add(CreateZoomButton("16x", Zoom16_Click));
+            ModeStack.Children.Add(CreateZoomButton("32x", Zoom32_Click));
+            ModeStack.Children.Add(CreateZoomButton("64x", Zoom64_Click));
+        }
+
+        private Button CreateZoomButton(string content, RoutedEventHandler reh)
+        {
+            Button b = new Button();
+            b.Content = content;
+            b.Width = 35;
+            b.Click += reh;
+            return b;
+        }
+
+        private void ZoomIt(double factor)
+        {
+            if (currentFactor > 0)
+            {
+                MyMap.Zoom(factor / currentFactor);
+                currentFactor = factor;
+            }
+            else
+            {
+                ResetZoomMap();
+            }
+        }
+
+        private void ResetZoomMap()
+        {
+            ClearMap();
+            InitializeZoomMap();
+        }
+
+        # region Zoom Buttons
+        private void Zoom_Click(object sender, RoutedEventArgs e)
+        {
+            ResetZoomMap();
+        }
+
+        private void Zoom8_Click(object sender, RoutedEventArgs e)
+        {
+            ZoomIt(8);
+
+        }
+
+        private void Zoom16_Click(object sender, RoutedEventArgs e)
+        {
+            ZoomIt(16);
+        }
+
+        private void Zoom32_Click(object sender, RoutedEventArgs e)
+        {
+            ZoomIt(32);
+        }
+
+        private void Zoom64_Click(object sender, RoutedEventArgs e)
+        {
+            ZoomIt(64);
+        }
+        # endregion
+
+        # endregion
+
+
+        # region Heat map
+
+
+
+        void AddHeatMapLayers_LayersInitialized(object sender, EventArgs args)
+        {
+            //Add 1000 random points to the heat map layer
+            //Replace this with "real" data points that you want to display
+            //in the heat map.
+            HeatMapLayer layer = MyMap.Layers["RandomHeatMapLayer"] as HeatMapLayer;
+
+            Random rand = new Random();
+            for (int i = 0; i < 1000; i++)
+            {
+                double x = rand.NextDouble() * MyMap.Extent.Width - MyMap.Extent.Width / 2;
+                double y = rand.NextDouble() * MyMap.Extent.Height - MyMap.Extent.Height / 2;
+                layer.HeatMapPoints.Add(new ESRI.ArcGIS.Client.Geometry.MapPoint(x, y));
+            }
+        }
+
+        private void Heatmap_Click(object sender, RoutedEventArgs e)
+        {
+            //MyMap.Layers.LayersInitialized += AddHeatMapLayers_LayersInitialized;
+
+
+        }
+
+        # endregion
+
+
+        # region Outline
+
+
+        private void Outline_Click(object sender, RoutedEventArgs e)
+        {
+            MyMap.Layers.LayersInitialized -= AddHeatMapLayers_LayersInitialized;
+            MyMap.Layers.Clear();
+            ArcGISTiledMapServiceLayer t2 = new ArcGISTiledMapServiceLayer { Url = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" };
+            MyMap.Layers.Add(t2);
+        }
+
+        # endregion
+
+        
+
     }
 }

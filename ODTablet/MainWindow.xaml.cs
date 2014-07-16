@@ -19,6 +19,7 @@ using ESRI.ArcGIS.Client;
 
 using SOD_CS_Library;
 using ESRI.ArcGIS.Client.Toolkit.DataSources;
+using ESRI.ArcGIS.Client.Symbols;
 
 namespace ODTablet
 {
@@ -36,13 +37,16 @@ namespace ODTablet
             , WorldBoundaries = "http://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer" // Just labels
             , CanadaBaseMap = "http://geoappext.nrcan.gc.ca/arcgis/rest/services/BaseMaps/CBMT3978/MapServer" // Canada Base Map - Transportation
             , CanadaBoundariesBaseMap = "http://geoappext.nrcan.gc.ca/arcgis/rest/services/BaseMaps/CBME_CBCE_HS_RO_3978/MapServer" // Canada Base Map - 
+            , CanadaSoilMap = "http://edumaps.esri.ca/arcgis/rest/services/MapServices/Soils/MapServer" // soils
+            , Languages = "http://edumaps.esricanada.com/ArcGIS/rest/services/Demographics/Languages/MapServer" // has three layers
+            , PolitikBoundaries = "http://136.159.14.25:6080/arcgis/rest/services/Politik/Boundaries/MapServer/0"
             ;
 
         private string
             CanadaExtent = "-16133214.9413533,5045906.11392677,-5418285.97972558,10721470.048289"
             , CalgaryExtent = "-12698770.20, 6629884.68,-12696155.45, 6628808.53";
 
-        private string
+        private string basemap_url,
             zoom_map_url, zoom_map_initial_extent,
             heatmap_url, heatmap_initial_extent,
             outline_url, outline_initial_extent;
@@ -54,17 +58,22 @@ namespace ODTablet
             ConfigureDevice();
             RegisterSoDEvents();
 
+            basemap_url = WorldImagery;
+
             // setting modes' urls
             zoom_map_url = WorldImagery;
             zoom_map_initial_extent = CanadaExtent;
 
-            heatmap_url = WorldShadedRelief;
+            heatmap_url = WorldShadedRelief; //CanadaSoilMap;
             heatmap_initial_extent = CanadaExtent;
 
-            outline_url = WorldStreetMapUrl;
+            outline_url = PolitikBoundaries;
             outline_initial_extent = CanadaExtent;
 
+            SetBaseMapLayer(basemap_url);
+            
             InitializeZoomMap(); //it only works if it's initialized, otherwise, need two clicks to show the map! wtf?
+            
         }
 
         # region SoD
@@ -136,6 +145,7 @@ namespace ODTablet
             MyMap.Layers.LayersInitialized -= AddHeatMapLayers_LayersInitialized;
             MyMap.Layers.Clear();
             ModeStack.Children.Clear();
+            SetBaseMapLayer(basemap_url);
         }
 
         private void ClearMap_Click(object sender, RoutedEventArgs e)
@@ -174,7 +184,7 @@ namespace ODTablet
         private void InitializeZoomMap()
         {
             Console.WriteLine("Initializing Zoom Map...");
-            SetBaseLayer(zoom_map_url);
+            //SetBaseMapLayer(zoom_map_url);
 
             currentFactor = 1;
             
@@ -257,18 +267,32 @@ namespace ODTablet
         {
             Console.WriteLine("Initializing Heat Map...");
             
-            SetBaseLayer(heatmap_url);
+            //SetBaseMapLayer(heatmap_url);
             
-            HeatMapLayer heatMapLayer = new HeatMapLayer();
-            heatMapLayer.ID = "RandomHeatMapLayer";
-            MyMap.Layers.Add(heatMapLayer);
+            //HeatMapLayer heatMapLayer = new HeatMapLayer();
+            //heatMapLayer.ID = "RandomHeatMapLayer";
+            //MyMap.Layers.Add(heatMapLayer);
+
+
+            ArcGISDynamicMapServiceLayer popl = new ArcGISDynamicMapServiceLayer { Url = "http://maps.esri.ca/arcgis/rest/services/StatsServices/PopulationDensity/MapServer/", ID="PopulationLayer" };
+            MyMap.Layers.Add(popl);
+
+            ESRI.ArcGIS.Client.Toolkit.Legend legend = new ESRI.ArcGIS.Client.Toolkit.Legend();
+            legend.Map = MyMap;
+            legend.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
+            legend.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+            legend.LayerIDs = new string[] {"PopulationLayer"};
+            legend.LayerItemsMode = ESRI.ArcGIS.Client.Toolkit.Legend.Mode.Flat;
+            legend.ShowOnlyVisibleLayers = true;
+
+            LayoutRoot.Children.Add(legend);
 
             UpdateExtent(heatmap_initial_extent);
 
             SendExtentToAllDevices(MyMap.Extent.ToString());
             AddHeatMapButtons();
 
-            MyMap.Layers.LayersInitialized += AddHeatMapLayers_LayersInitialized;
+            //MyMap.Layers.LayersInitialized += AddHeatMapLayers_LayersInitialized;
         }
 
         private void AddHeatMapButtons()
@@ -282,22 +306,41 @@ namespace ODTablet
             InitializeHeatMap();
         }
 
+
         void AddHeatMapLayers_LayersInitialized(object sender, EventArgs args)
         {
             //Add 1000 random points to the heat map layer
             //Replace this with "real" data points that you want to display
             //in the heat map.
 
-            //TODO : ADD HEATMAP HERE!
-            HeatMapLayer layer = MyMap.Layers["RandomHeatMapLayer"] as HeatMapLayer;
 
-            Random rand = new Random();
-            for (int i = 0; i < 10; i++)
-            {
-                double x = rand.NextDouble() * MyMap.Extent.Width - MyMap.Extent.Width / 2;
-                double y = rand.NextDouble() * MyMap.Extent.Height - MyMap.Extent.Height / 2;
-                layer.HeatMapPoints.Add(new ESRI.ArcGIS.Client.Geometry.MapPoint(x, y));
-            }
+
+            //TODO : ADD HEATMAP HERE!
+            //HeatMapLayer layer = MyMap.Layers["RandomHeatMapLayer"] as HeatMapLayer;
+
+            //double[] extentPoints = ExtentStringToArray(heatmap_initial_extent);
+
+            //double XMin = extentPoints[0]; // XMin
+            //double YMin = extentPoints[1]; // YMin
+            //double XMax = extentPoints[2]; // XMax
+            //double YMax = extentPoints[3]; // YMax
+
+            //double dX = (XMax - XMin)/4;
+            //double dY = (YMax - YMin)/4;
+
+
+            //Random rand = new Random();
+            //for (int i = 0; i < 1000; i++)
+            //{
+            //    //double xW = rand.NextDouble() * MyMap.Extent.Width - MyMap.Extent.Width / 2;
+            //    //double yH = rand.NextDouble() * MyMap.Extent.Height - MyMap.Extent.Height / 2;
+            //    double x = XMin + rand.NextDouble() * dX;
+            //    double y = YMin + rand.NextDouble() * dY;
+
+            //    //Console.WriteLine("x: " + x + " XMin: " + XMin + " XMax: " + XMin + " YMin: " + YMin + " YMax: " + YMax + " y: " + y);
+
+            //    layer.HeatMapPoints.Add(new ESRI.ArcGIS.Client.Geometry.MapPoint(x-1000, y-1000));
+            //}
         }
 
         private void Heatmap_Click(object sender, RoutedEventArgs e)
@@ -313,7 +356,14 @@ namespace ODTablet
         {
             Console.WriteLine("Initializing Outline Map...");
             
-            SetBaseLayer(outline_url);
+            
+            //SetBaseMapLayer(basemap_url);
+
+            
+
+            //FeatureLayer OutlineLayer = new FeatureLayer { Url = outline_url };
+            //ArcGISTiledMapServiceLayer OutlineLayer = new ArcGISTiledMapServiceLayer { Url = "http://136.159.14.25:6080/arcgis/rest/services/Politik/Boundaries/MapServer" };
+            AddOutlineLayer();
 
             UpdateExtent(outline_initial_extent);
 
@@ -323,14 +373,26 @@ namespace ODTablet
 
         private void AddOutlineButtons()
         {
+            ModeStack.Children.Add(CreateOutlineButton("Remove Black Outline", RemoveOutline_Click));
+        }
 
+        private void AddOutlineLayer()
+        {
+            ArcGISDynamicMapServiceLayer OutlineLayer = new ArcGISDynamicMapServiceLayer { Url = "http://136.159.14.25:6080/arcgis/rest/services/Politik/Boundaries/MapServer" };
+            OutlineLayer.ID = "Outline";
+            MyMap.Layers.Add(OutlineLayer);
+        }
+
+        private void RemoveOutlineLayer()
+        {
+            MyMap.Layers.Remove(MyMap.Layers["Outline"]);
         }
 
         private Button CreateOutlineButton(string content, RoutedEventHandler reh)
         {
             Button b = new Button();
             b.Content = content;
-            b.Width = 35;
+            //b.Width = 35;
             b.Click += reh;
             return b;
         }
@@ -347,15 +409,11 @@ namespace ODTablet
             ResetOutlineMap();
         }
 
-        private void AltOutline_Click(object sender, RoutedEventArgs e)
+        private void RemoveOutline_Click(object sender, RoutedEventArgs e)
         {
-            
+            RemoveOutlineLayer();
         }
 
-        private void ResetLabels_Click(object sender, RoutedEventArgs e)
-        {
-            ResetOutlineMap();
-        }
         # endregion
 
 
@@ -385,19 +443,35 @@ namespace ODTablet
         }
         
 
-        private void SetBaseLayer(string url)
+        private void SetBaseMapLayer(string url)
         {
-            MyMap.Layers.Remove(MyMap.Layers["BaseMap"]);
-            MyMap.Layers.Remove(MyMap.Layers["Labels"]);
-            
-            ArcGISTiledMapServiceLayer BaseMapLayer = new ArcGISTiledMapServiceLayer { Url = url };
+            basemap_url = url;
+            int index = MyMap.Layers.IndexOf(MyMap.Layers["BaseMap"]);
+            Console.WriteLine("index: " + index);
+
+            ArcGISTiledMapServiceLayer BaseMapLayer = new ArcGISTiledMapServiceLayer { Url = basemap_url };
             BaseMapLayer.ID = "BaseMap";
-            MyMap.Layers.Add(BaseMapLayer);
-            if(LabelsOn)
+
+            if(index >= 0)
             {
-                LabelsOn = false;
-                ToggleLabels();
+                MyMap.Layers.RemoveAt(index);
+                MyMap.Layers.Insert(index, BaseMapLayer);
+            } else
+            {
+                MyMap.Layers.Add(BaseMapLayer);
             }
+
+            //MyMap.Layers.Remove(MyMap.Layers["BaseMap"]);
+            
+            //MyMap.Layers.Remove(MyMap.Layers["Labels"]);
+            //ArcGISDynamicMapServiceLayer OutlineLayer = new ArcGISDynamicMapServiceLayer { Url = url };
+            
+            
+            //if(LabelsOn)
+            //{
+            //    LabelsOn = false;
+            //    ToggleLabels();
+            //}
             
         }
 
@@ -405,17 +479,17 @@ namespace ODTablet
 
         private void ImageryMap_Click(object sender, RoutedEventArgs e)
         {
-            SetBaseLayer(WorldImagery);
+            SetBaseMapLayer(WorldImagery);
         }
 
         private void ShadedMap_Click(object sender, RoutedEventArgs e)
         {
-            SetBaseLayer(WorldShadedRelief);
+            SetBaseMapLayer(WorldShadedRelief);
         }
 
         private void StreetMap_Click(object sender, RoutedEventArgs e)
         {
-            SetBaseLayer(WorldStreetMapUrl);
+            SetBaseMapLayer(WorldStreetMapUrl);
         }
 
 

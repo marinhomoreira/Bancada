@@ -29,14 +29,21 @@ namespace ODTablet
     {
         SOD SoD;
 
-        private string WorldStreetMapUrl = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer";
+        private string 
+              WorldStreetMapUrl = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" // Streets!
+            , WorldShadedRelief = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer" // Just shades
+            , WorldImagery = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer" // Images from satellites
+            , WorldBoundaries = "http://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer" // Just labels
+            , CanadaBaseMap = "http://geoappext.nrcan.gc.ca/arcgis/rest/services/BaseMaps/CBMT3978/MapServer" // Canada Base Map - Transportation
+            , CanadaBoundariesBaseMap = "http://geoappext.nrcan.gc.ca/arcgis/rest/services/BaseMaps/CBME_CBCE_HS_RO_3978/MapServer" // Canada Base Map - 
+            ;
 
-        
+        private string
+            CanadaExtent = "-16133214.9413533,5045906.11392677,-5418285.97972558,10721470.048289"
+            , CalgaryExtent = "-12698770.20, 6629884.68,-12696155.45, 6628808.53";
 
-        private string CanadaExtent = "-16133214.9413533,5045906.11392677,-5418285.97972558,10721470.048289";
-        private string CalgaryExtent = "-12698770.20, 6629884.68,-12696155.45, 6628808.53";
-
-        private string zoom_map_initial_extent, zoom_map_url,
+        private string
+            zoom_map_url, zoom_map_initial_extent,
             heatmap_url, heatmap_initial_extent,
             outline_url, outline_initial_extent;
 
@@ -48,10 +55,10 @@ namespace ODTablet
             RegisterSoDEvents();
 
             // setting modes' urls
-            zoom_map_url = WorldStreetMapUrl;
+            zoom_map_url = WorldImagery;
             zoom_map_initial_extent = CanadaExtent;
 
-            heatmap_url = WorldStreetMapUrl;
+            heatmap_url = WorldShadedRelief;
             heatmap_initial_extent = CanadaExtent;
 
             outline_url = WorldStreetMapUrl;
@@ -85,8 +92,8 @@ namespace ODTablet
 
             // Name and ID of device - displayed in Locator
             // TODO: Future: possible to look for devices using name, instead of ID.
-            SoD.ownDevice.ID = "2";
-            SoD.ownDevice.name = "MAIN_WALLDISPLAY";
+            SoD.ownDevice.ID = "11";
+            SoD.ownDevice.name = "ODTablet";
         }
 
         private void RegisterSoDEvents()
@@ -112,8 +119,7 @@ namespace ODTablet
         # endregion
 
 
-
-
+        # region Utils
         private void MyMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
             SendExtentToAllDevices(e.NewExtent.ToString());
@@ -136,7 +142,7 @@ namespace ODTablet
         {
             ClearMap();
         }
-
+        # endregion
 
 
         # region Extent
@@ -144,6 +150,18 @@ namespace ODTablet
         private double[] ExtentStringToArray(string extent)
         {
             return Array.ConvertAll(extent.Split(','), Double.Parse);
+        }
+
+        private void UpdateExtent(string extentString)
+        {
+            double[] extentPoints = ExtentStringToArray(extentString);
+
+            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
+            myEnvelope.XMin = extentPoints[0];
+            myEnvelope.YMin = extentPoints[1];
+            myEnvelope.XMax = extentPoints[2];
+            myEnvelope.YMax = extentPoints[3];
+            MyMap.Extent = myEnvelope;
         }
 
         # endregion
@@ -156,22 +174,15 @@ namespace ODTablet
         private void InitializeZoomMap()
         {
             Console.WriteLine("Initializing Zoom Map...");
-            ArcGISTiledMapServiceLayer zoomLayer = new ArcGISTiledMapServiceLayer { Url = zoom_map_url };
-            MyMap.Layers.Add(zoomLayer);
+            SetBaseLayer(zoom_map_url);
 
             currentFactor = 1;
             
-            double[] extentPoints = ExtentStringToArray(zoom_map_initial_extent);
-
-            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
-            myEnvelope.XMin = extentPoints[0];
-            myEnvelope.YMin = extentPoints[1];
-            myEnvelope.XMax = extentPoints[2];
-            myEnvelope.YMax = extentPoints[3];
-            MyMap.Extent = myEnvelope;
+            UpdateExtent(zoom_map_initial_extent);
 
             SendExtentToAllDevices(MyMap.Extent.ToString());
             AddZoomButtons();
+            ZoomIt(8);
         }
 
         private void AddZoomButtons()
@@ -242,18 +253,46 @@ namespace ODTablet
 
 
         # region Heat map
+        private void InitializeHeatMap()
+        {
+            Console.WriteLine("Initializing Heat Map...");
+            
+            SetBaseLayer(heatmap_url);
+            
+            HeatMapLayer heatMapLayer = new HeatMapLayer();
+            heatMapLayer.ID = "RandomHeatMapLayer";
+            MyMap.Layers.Add(heatMapLayer);
 
+            UpdateExtent(heatmap_initial_extent);
 
+            SendExtentToAllDevices(MyMap.Extent.ToString());
+            AddHeatMapButtons();
+
+            MyMap.Layers.LayersInitialized += AddHeatMapLayers_LayersInitialized;
+        }
+
+        private void AddHeatMapButtons()
+        {
+            // TODO: Heat map controls?
+        }
+
+        private void ResetHeatMap()
+        {
+            ClearMap();
+            InitializeHeatMap();
+        }
 
         void AddHeatMapLayers_LayersInitialized(object sender, EventArgs args)
         {
             //Add 1000 random points to the heat map layer
             //Replace this with "real" data points that you want to display
             //in the heat map.
+
+            //TODO : ADD HEATMAP HERE!
             HeatMapLayer layer = MyMap.Layers["RandomHeatMapLayer"] as HeatMapLayer;
 
             Random rand = new Random();
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 10; i++)
             {
                 double x = rand.NextDouble() * MyMap.Extent.Width - MyMap.Extent.Width / 2;
                 double y = rand.NextDouble() * MyMap.Extent.Height - MyMap.Extent.Height / 2;
@@ -263,28 +302,123 @@ namespace ODTablet
 
         private void Heatmap_Click(object sender, RoutedEventArgs e)
         {
-            //MyMap.Layers.LayersInitialized += AddHeatMapLayers_LayersInitialized;
-
-
+            ResetHeatMap();
         }
 
         # endregion
 
 
         # region Outline
+        private void InitializeOutlineMap()
+        {
+            Console.WriteLine("Initializing Outline Map...");
+            
+            SetBaseLayer(outline_url);
 
+            UpdateExtent(outline_initial_extent);
+
+            SendExtentToAllDevices(MyMap.Extent.ToString());
+            AddOutlineButtons();
+        }
+
+        private void AddOutlineButtons()
+        {
+
+        }
+
+        private Button CreateOutlineButton(string content, RoutedEventHandler reh)
+        {
+            Button b = new Button();
+            b.Content = content;
+            b.Width = 35;
+            b.Click += reh;
+            return b;
+        }
+
+
+        private void ResetOutlineMap()
+        {
+            ClearMap();
+            InitializeOutlineMap();
+        }
 
         private void Outline_Click(object sender, RoutedEventArgs e)
         {
-            MyMap.Layers.LayersInitialized -= AddHeatMapLayers_LayersInitialized;
-            MyMap.Layers.Clear();
-            ArcGISTiledMapServiceLayer t2 = new ArcGISTiledMapServiceLayer { Url = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" };
-            MyMap.Layers.Add(t2);
+            ResetOutlineMap();
         }
 
+        private void AltOutline_Click(object sender, RoutedEventArgs e)
+        {
+            
+        }
+
+        private void ResetLabels_Click(object sender, RoutedEventArgs e)
+        {
+            ResetOutlineMap();
+        }
         # endregion
 
+
+
+
+        private bool LabelsOn = false; // TODO: Remove flag
+
+        private void ToggleLabels()
+        {
+            if (!LabelsOn)
+            {
+                ArcGISTiledMapServiceLayer LabelsLayer = new ArcGISTiledMapServiceLayer { Url = WorldBoundaries };
+                LabelsLayer.ID = "Labels";
+                MyMap.Layers.Add(LabelsLayer);
+                LabelsOn = true;
+            }
+            else
+            {
+                MyMap.Layers.Remove(MyMap.Layers["Labels"]);
+                LabelsOn = false;
+            }
+        }
+
+        private void AddLabels_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleLabels();
+        }
         
+
+        private void SetBaseLayer(string url)
+        {
+            MyMap.Layers.Remove(MyMap.Layers["BaseMap"]);
+            MyMap.Layers.Remove(MyMap.Layers["Labels"]);
+            
+            ArcGISTiledMapServiceLayer BaseMapLayer = new ArcGISTiledMapServiceLayer { Url = url };
+            BaseMapLayer.ID = "BaseMap";
+            MyMap.Layers.Add(BaseMapLayer);
+            if(LabelsOn)
+            {
+                LabelsOn = false;
+                ToggleLabels();
+            }
+            
+        }
+
+        
+
+        private void ImageryMap_Click(object sender, RoutedEventArgs e)
+        {
+            SetBaseLayer(WorldImagery);
+        }
+
+        private void ShadedMap_Click(object sender, RoutedEventArgs e)
+        {
+            SetBaseLayer(WorldShadedRelief);
+        }
+
+        private void StreetMap_Click(object sender, RoutedEventArgs e)
+        {
+            SetBaseLayer(WorldStreetMapUrl);
+        }
+
+
 
     }
 }

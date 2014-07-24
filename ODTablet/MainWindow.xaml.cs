@@ -315,7 +315,7 @@ namespace ODTablet
                     SetBaseMapLayer(UrlDic[CurrentMode]);
                     break;
                 case StreetMode:
-                    SetBaseMapLayer(WorldStreetMap);
+                    SetBaseMapLayer(UrlDic[StreetMode]);
                     break;
                 case PopulationMode:
                     SetBaseMapLayer(UrlDic[BaseMap]);

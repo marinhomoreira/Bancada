@@ -89,65 +89,17 @@ namespace ODTablet.LensViewFinder
         // TODO: REMOVE?
         private void Map_ExtentChanged(object sender, ExtentEventArgs e)
         {
-            //UpdateMagnifier();   
-
+            UpdateExtent(this.VFMap.Extent.ToString());
         }
 
-        private void UpdateMagnifier()
-        {
-            if (this.Visibility == Visibility.Collapsed) { return; }
-            
-            if (this.Map == null) { return; }
-
-            DependencyObject rola = VisualTreeHelper.GetParent(this.Map);
-            DependencyObject roleta = VisualTreeHelper.GetParent(this);
-
-            if(VisualTreeHelper.GetParent(this.Map) == VisualTreeHelper.GetParent(this))
-            {
-                Point point = this.TransformToVisual(this.Map).Transform(
-                    new Point(
-                        this.RenderSize.Width * 0.5d + this.Translate.X,
-                        this.RenderSize.Height * 0.5d + this.Translate.Y
-                    )
-                );
-                MapPoint center = this.Map.ScreenToMap(point);
-                double resolution = this.Map.Resolution;
-                double zoomResolution = resolution / 1; //this.ZoomFactor;
-                double width = 0.5d * this.VFMap.ActualWidth * zoomResolution;
-                Envelope envelope = new Envelope()
-                {
-                    XMin = center.X - width,
-                    YMin = center.Y - width,
-                    XMax = center.X + width,
-                    YMax = center.Y + width,
-                    SpatialReference = this.VFMap.SpatialReference
-                };
-                this.VFMap.Extent = envelope;
-                return;
-            }
-            Console.WriteLine("EH ADOTADO!");
-        }
-
+        
 
         public void UpdateExtent(double[] extent)
         {
             if (this.Visibility == Visibility.Collapsed) { return; }
             if (this.Map == null) { return; }
 
-            // ViewFinder Resizing
-            MapPoint topLeft = new MapPoint(extent[0], extent[3]);
-            //MapPoint topRight = new MapPoint(extent[2], extent[3]);
-            MapPoint bottomLeft = new MapPoint(extent[0], extent[1]);
-            MapPoint bottomRight = new MapPoint(extent[2], extent[1]);
-
-            double VFHeight = this.Map.MapToScreen(topLeft).Y - this.Map.MapToScreen(bottomLeft).Y;
-            double VFWidth = this.Map.MapToScreen(bottomRight).X - this.Map.MapToScreen(bottomLeft).X;
-
-            this.Width = Math.Abs(VFWidth);
-            this.Height = Math.Abs(VFHeight);
-
-            // ViewFinder Translation
-            Envelope envelope = new Envelope()
+            Envelope lensExtent = new Envelope()
             {
                 XMin = extent[0],
                 YMin = extent[1],
@@ -155,25 +107,46 @@ namespace ODTablet.LensViewFinder
                 YMax = extent[3],
                 SpatialReference = this.VFMap.SpatialReference
             };
-            try
-            {
-                TranslateVF(envelope);
-            }
-            catch (InvalidOperationException e)
-            {
-                Console.WriteLine("PAU EXCEPTION INVALID OPERATION UPDATE(EXTENT)!");
-            }
-            this.VFMap.Extent = envelope;
 
+            if(this.Map.Extent.Intersects(lensExtent))
+            {
+                Envelope MapLensIntersectionExtent = lensExtent.Intersection(this.Map.Extent);
+                try
+                {
+                    ResizeWindow(MapLensIntersectionExtent);
+                    TranslateVF(MapLensIntersectionExtent);
+                    this.VFMap.Extent = MapLensIntersectionExtent;
+                }
+                catch (InvalidOperationException e)
+                {
+                    Console.WriteLine("Invalid operation exception! FAIL.");
+                }
+            }
+            else
+            {
+                Console.WriteLine(this.Name + " was friendzoned.");
+            }
         }
 
-        public void TranslateVF(Envelope envelope)
+        private void ResizeWindow(Envelope lensExtent)
         {
-            MapPoint envelopeCenter = envelope.GetCenter();
-            Point destiny = this.Map.MapToScreen(envelopeCenter);
+            // ViewFinder Resizing
+            MapPoint topLeft = new MapPoint(lensExtent.XMin, lensExtent.YMax);
+            MapPoint bottomLeft = new MapPoint(lensExtent.XMin, lensExtent.YMin);
+            MapPoint bottomRight = new MapPoint(lensExtent.XMax, lensExtent.YMin);
 
-            DependencyObject rola = VisualTreeHelper.GetParent(this.Map);
-            DependencyObject roleta = VisualTreeHelper.GetParent(this);
+            double VFHeight = this.Map.MapToScreen(topLeft).Y - this.Map.MapToScreen(bottomLeft).Y;
+            double VFWidth = this.Map.MapToScreen(bottomRight).X - this.Map.MapToScreen(bottomLeft).X;
+
+            this.Width = Math.Abs(VFWidth);
+            this.Height = Math.Abs(VFHeight);
+        }
+
+        public void TranslateVF(Envelope lensExtent)
+        {
+            MapPoint lensCenter = lensExtent.GetCenter();
+            Point destiny = this.Map.MapToScreen(lensCenter);
+
             if (VisualTreeHelper.GetParent(this.Map) == VisualTreeHelper.GetParent(this))
             {
                 Point point = (this.TransformToVisual(this.Map)).Transform(
@@ -193,7 +166,7 @@ namespace ODTablet.LensViewFinder
             }
             else
             {
-                Console.WriteLine("EH ADOTADO EXTENT!");
+                //Console.WriteLine("EH ADOTADO EXTENT!");
             }
         }
 

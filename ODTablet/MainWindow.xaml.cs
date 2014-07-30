@@ -257,7 +257,7 @@ namespace ODTablet
                 {
                     MapViewFinder mvf = new MapViewFinder(activeMode.Color)
                     {
-                        Map = BasemapMap,
+                        Map = LensMap,
                         Name = activeModeName,
                         Layers = new LensFactory().CreateLens(activeModeName).MapLayerCollection,
                         
@@ -286,6 +286,7 @@ namespace ODTablet
             }
             
             UpdateExtent(CurrentLensMode.Extent.ToString());
+            UpdateAllLensAccordingCurrentModeExtent(CurrentLensMode.Extent.Extent);
         }
 
 
@@ -410,6 +411,7 @@ namespace ODTablet
 
         private void SendRemoveAllLensCommand_Click(object sender, RoutedEventArgs e)
         {
+            ActiveLens = new Dictionary<string, LensMode>();
             CurrentMode = "All"; // TODO: Hardcoding CurrentMode. Too bad.
             SendRemoveLensModeMessage();
         }
@@ -451,17 +453,22 @@ namespace ODTablet
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
-            //ModeExtentDic[CurrentMode] = e.NewExtent.ToString();
             BasemapMap.Extent = e.NewExtent;
             ActiveLens[CurrentMode].Extent = e.NewExtent;
+            UpdateAllLensAccordingCurrentModeExtent(ActiveLens[CurrentMode].Extent);
+            BroadcastCurrentExtent();
+        }
+
+        private void UpdateAllLensAccordingCurrentModeExtent(Envelope extent)
+        {
             foreach (UIElement element in LayoutRoot.Children)
             {
                 if (element is MapViewFinder)
                 {
-                    ((MapViewFinder)element).TranslateVF(e.NewExtent);
+                    // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
+                    ((MapViewFinder)element).UpdateExtent(ActiveLens[((MapViewFinder)element).Name].Extent.ToString());
                 }
             }
-            BroadcastCurrentExtent();
         }
 
         # region Mode buttons

@@ -15,6 +15,8 @@ namespace ODTablet.MapModel
 
         private Envelope _extent;
 
+        public int UIIndex { get; set; }
+
         public Layer MapLayer 
         { 
             get; set;

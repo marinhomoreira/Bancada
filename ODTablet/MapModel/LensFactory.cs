@@ -51,7 +51,9 @@ namespace ODTablet.MapModel
                 YMin = CanadaExtent[1],
                 XMax = CanadaExtent[2],
                 YMax = CanadaExtent[3],
+                //SpatialReference = new SpatialReference();//102100
             };
+
 
             Envelope CalgaryEnvelope = new Envelope()
             {
@@ -120,12 +122,19 @@ namespace ODTablet.MapModel
             CitiesLayer = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[CitiesMode] };
             CitiesLayer.DisableClientCaching = false;
 
-            ModeLayerDic[SatelliteMode] = SatelliteLayer;
+            /*ModeLayerDic[SatelliteMode] = SatelliteLayer;
             ModeLayerDic[BaseMap] = BaseMapLayer;
             ModeLayerDic[StreetMode] = StreetMapLayer;
             ModeLayerDic[PopulationMode] = PopulationLayer;
             ModeLayerDic[ElectoralDistrictsMode] = ElectoralDistrictsLayer;
             ModeLayerDic[CitiesMode] = CitiesLayer;
+             * */
+            ModeLayerDic[SatelliteMode] = new ArcGISTiledMapServiceLayer() { Url = UrlDic[SatelliteMode] };
+            ModeLayerDic[BaseMap] = new ArcGISTiledMapServiceLayer { Url = UrlDic[BaseMap] }; ;
+            ModeLayerDic[StreetMode] = new ArcGISTiledMapServiceLayer { Url = UrlDic[StreetMode] };
+            ModeLayerDic[PopulationMode] = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[PopulationMode] };
+            ModeLayerDic[ElectoralDistrictsMode] = new ArcGISDynamicMapServiceLayer { Url = UrlDic[ElectoralDistrictsMode] };
+            ModeLayerDic[CitiesMode] = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[CitiesMode] };
         }
 
 

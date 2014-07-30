@@ -89,33 +89,43 @@ namespace ODTablet.LensViewFinder
         // TODO: REMOVE?
         private void Map_ExtentChanged(object sender, ExtentEventArgs e)
         {
-            this.UpdateMagnifier();
-        }
+            //UpdateMagnifier();   
 
+        }
 
         private void UpdateMagnifier()
         {
             if (this.Visibility == Visibility.Collapsed) { return; }
+            
             if (this.Map == null) { return; }
-            Point point = this.TransformToVisual(this.Map).Transform(
-                new Point(
-                    this.RenderSize.Width * 0.5d + this.Translate.X,
-                    this.RenderSize.Height * 0.5d + this.Translate.Y
-                )
-            );
-            MapPoint center = this.Map.ScreenToMap(point);
-            double resolution = this.Map.Resolution;
-            double zoomResolution = resolution / 1; //this.ZoomFactor;
-            double width = 0.5d * this.VFMap.ActualWidth * zoomResolution;
-            Envelope envelope = new Envelope()
+
+            DependencyObject rola = VisualTreeHelper.GetParent(this.Map);
+            DependencyObject roleta = VisualTreeHelper.GetParent(this);
+
+            if(VisualTreeHelper.GetParent(this.Map) == VisualTreeHelper.GetParent(this))
             {
-                XMin = center.X - width,
-                YMin = center.Y - width,
-                XMax = center.X + width,
-                YMax = center.Y + width,
-                SpatialReference = this.VFMap.SpatialReference
-            };
-            this.VFMap.Extent = envelope;
+                Point point = this.TransformToVisual(this.Map).Transform(
+                    new Point(
+                        this.RenderSize.Width * 0.5d + this.Translate.X,
+                        this.RenderSize.Height * 0.5d + this.Translate.Y
+                    )
+                );
+                MapPoint center = this.Map.ScreenToMap(point);
+                double resolution = this.Map.Resolution;
+                double zoomResolution = resolution / 1; //this.ZoomFactor;
+                double width = 0.5d * this.VFMap.ActualWidth * zoomResolution;
+                Envelope envelope = new Envelope()
+                {
+                    XMin = center.X - width,
+                    YMin = center.Y - width,
+                    XMax = center.X + width,
+                    YMax = center.Y + width,
+                    SpatialReference = this.VFMap.SpatialReference
+                };
+                this.VFMap.Extent = envelope;
+                return;
+            }
+            Console.WriteLine("EH ADOTADO!");
         }
 
 
@@ -145,23 +155,46 @@ namespace ODTablet.LensViewFinder
                 YMax = extent[3],
                 SpatialReference = this.VFMap.SpatialReference
             };
+            try
+            {
+                TranslateVF(envelope);
+            }
+            catch (InvalidOperationException e)
+            {
+                Console.WriteLine("PAU EXCEPTION INVALID OPERATION UPDATE(EXTENT)!");
+            }
+            this.VFMap.Extent = envelope;
+
+        }
+
+        public void TranslateVF(Envelope envelope)
+        {
             MapPoint envelopeCenter = envelope.GetCenter();
             Point destiny = this.Map.MapToScreen(envelopeCenter);
-            Point point = this.TransformToVisual(this.Map).Transform(
-                new Point(
-                    this.RenderSize.Width * 0.5d + this.Translate.X,
-                    this.RenderSize.Height * 0.5d + this.Translate.Y
-                )
-            );
-            double x = destiny.X - point.X;
-            double y = destiny.Y - point.Y;
-            if (this.FlowDirection == FlowDirection.RightToLeft)
+
+            DependencyObject rola = VisualTreeHelper.GetParent(this.Map);
+            DependencyObject roleta = VisualTreeHelper.GetParent(this);
+            if (VisualTreeHelper.GetParent(this.Map) == VisualTreeHelper.GetParent(this))
             {
-                x *= -1d;
+                Point point = (this.TransformToVisual(this.Map)).Transform(
+                    new Point(
+                        this.RenderSize.Width * 0.5d + this.Translate.X,
+                        this.RenderSize.Height * 0.5d + this.Translate.Y
+                    )
+                );
+                double x = destiny.X - point.X;
+                double y = destiny.Y - point.Y;
+                if (this.FlowDirection == FlowDirection.RightToLeft)
+                {
+                    x *= -1d;
+                }
+                this.Translate.X += x;
+                this.Translate.Y += y;
             }
-            this.Translate.X += x;
-            this.Translate.Y += y;
-            this.VFMap.Extent = envelope;
+            else
+            {
+                Console.WriteLine("EH ADOTADO EXTENT!");
+            }
         }
 
         internal void UpdateExtent(string p)

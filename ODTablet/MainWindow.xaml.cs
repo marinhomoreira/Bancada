@@ -13,7 +13,6 @@ using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
 
-
 // ArcGIS
 using ESRI.ArcGIS.Client;
 using ESRI.ArcGIS.Client.Toolkit.DataSources;
@@ -33,44 +32,60 @@ namespace ODTablet
     public partial class MainWindow : Window
     {
 
-        SOD SoD;
+
+        # region Initialization - Variables
 
         private const String
-            SatelliteMode = "Satellite"
-            , StreetMode = "Street"
-            , PopulationMode = "Population"
-            , ElectoralDistrictsMode = "ElectoralDistricts"
-            , CitiesMode = "City"
-            , BaseMap = "BaseMap"
-            , BaseMode = "Base";
+                        SatelliteMode = "Satellite"
+                        , StreetMode = "Street"
+                        , PopulationMode = "Population"
+                        , ElectoralDistrictsMode = "ElectoralDistricts"
+                        , CitiesMode = "City"
+                        , BaseMap = "BaseMap"
+                        , BaseMode = "Base";
+
+        private StackPanel
+                        ModesListMenu
+                        , BackOffMenu;
+
+        // UI
+        private Map
+                BasemapMap
+                , LensMap;
+
+
         // Modes
         private string CurrentMode;
 
-        // UI
-        Map BasemapMap;
-        Map LensMap;
-        StackPanel ModesStackPanel, BackOffStackPanel;
-
         private Dictionary<string, LensMode> ActiveLens;
-        
-        Dictionary<string, string> TableConfiguration;
+
+        # endregion
+
+
 
         public MainWindow()
         {
             InitializeComponent();
 
+            InitializeUIElements();
+            DisplayStartMenu();
+
+            ActiveLens = new Dictionary<string, LensMode>();
+
+            // SOD stuff
             ConfigureSoD();
             ConfigureDevice();
             RegisterSoDEvents();
-
-            InitializeUIElements();
-            ModeDeactivated();
-
-            ActiveLens = new Dictionary<string, LensMode>();
-            SendMsgToGetActiveModesFromTable();
+            
         }
 
+
+
+        
         # region SoD
+        
+        SOD SoD;
+        
         private void ConfigureSoD()
         {
             // Configure and instantiate SOD object
@@ -111,187 +126,19 @@ namespace ODTablet
 
             SoD.socket.On("string", (data) =>
             {
-                Dictionary<string, dynamic> parsedMessage = SoD.ParseMessageIntoDictionary(data);
+                //Dictionary<string, dynamic> parsedMessage = SoD.ParseMessageIntoDictionary(data);
             });
 
             SoD.socket.On("dictionary", (dict) =>
             {
-                this.ProcessDictionary(SoD.ParseMessageIntoDictionary(dict));
+                //this.ProcessDictionary(SoD.ParseMessageIntoDictionary(dict));
             });
 
             // make the socket.io connection
             SoD.SocketConnect();
         }
 
-        
-
-        private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
-        {
-            String extentString = (String)parsedMessage["data"]["data"]["Extent"];
-            String updateMode = (String)parsedMessage["data"]["data"]["UpdateMode"];
-            String removeMode = (String)parsedMessage["data"]["data"]["RemoveMode"];
-            String tableConfiguration = (String)parsedMessage["data"]["data"]["TableActiveModes"];
-
-            if (tableConfiguration != null && tableConfiguration.Equals("All"))
-            {
-                TableConfiguration = parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>();
-                UpdateLocalConfiguration(TableConfiguration);
-                //UpdateLensExtentMode(updateMode, extentString);
-            }
-        }
-
-        
         # endregion
-
-        bool isDirty = false;
-        private void UpdateLocalConfiguration(Dictionary<string, string> TableConfiguration)
-        {
-            List<string> remoteActiveModes = new List<string>();
-            
-            foreach (KeyValuePair<string, string> remoteMode in TableConfiguration)
-            {
-                string remoteModeName = remoteMode.Key;
-                string remoteModeExtent = remoteMode.Value;
-
-                Console.WriteLine(remoteModeName + ": " + remoteModeExtent);
-
-                if(!remoteModeName.Equals("TableActiveModes"))
-                {
-                    this.Dispatcher.Invoke((Action)(() =>
-                    {
-                        remoteActiveModes.Add(remoteModeName);
-                        
-                        VerifyAndCreateLens(remoteModeName);
-                        
-                        // Compare extents.
-                        // If remote is different, update local extent
-                        Envelope newEnv = StringToEnvelope(remoteModeExtent);
-                        if(ActiveLens[remoteModeName].Extent != newEnv)
-                        {
-                            // Update Extent
-                            ActiveLens[remoteModeName].Extent = newEnv;
-                            isDirty = true;
-                        }
-                        
-                        // Compare Z positions
-                        // If remote is different, update local Z position
-                        if(ActiveLens[remoteModeName].UIIndex != remoteActiveModes.IndexOf(remoteModeName))
-                        {
-                            // Update Z position
-                            ActiveLens[remoteModeName].UIIndex = remoteActiveModes.IndexOf(remoteModeName);
-                            isDirty = true;
-                        }
-                    }));
-                }
-            }
-            VerifyIfDirty();
-        }
-
-        private void VerifyIfDirty()
-        {
-            if (isDirty)
-            {
-                UpdateCurrentModeMap();
-                isDirty = false;
-            }
-        }
-
-        private void UpdateCurrentModeMap()
-        {
-            if (CurrentMode == null)
-            {
-                return;
-            }
-
-            this.Dispatcher.Invoke((Action)(() =>
-            {
-                //ConfigMap();
-            }));
-        }
-
-        private void VerifyAndCreateLens(string Mode)
-        {
-            // TODO change this method's name for something better
-            if (!ActiveLens.ContainsKey(Mode))
-            {
-                ActiveLens.Add(Mode, new LensFactory().CreateLens(Mode));
-                //isDirty = true;
-            }
-            //VerifyIfDirty(); // TODO: better way to do this?
-        }
-
-
-        private void ConfigMap()
-        {
-            //ModeActivated();
-            Console.WriteLine("Initializing " + CurrentMode + " CurrentMode...");
-
-            LayoutRoot.Children.Clear();
-
-            if (!ActiveLens.ContainsKey(CurrentMode))
-            {
-                ActiveLens.Add(CurrentMode, new LensFactory().CreateLens(CurrentMode));
-            }
-
-            LensMode CurrentLensMode = ActiveLens[CurrentMode];
-
-            LensMode basem = new LensFactory().CreateLens(BaseMap);
-            BasemapMap.Layers.Add(basem.MapLayer);
-            BasemapMap.Extent = CurrentLensMode.Extent;
-            Canvas.SetZIndex(LensMap, 0);
-
-            LensMap.Layers.Add(CurrentLensMode.MapLayer);
-            LensMap.Extent = CurrentLensMode.Extent;
-            Canvas.SetZIndex(LensMap, CurrentLensMode.UIIndex + 5);
-
-            LayoutRoot.Children.Add(BasemapMap);
-            LayoutRoot.Children.Add(LensMap);
-            LayoutRoot.Children.Add(BackOffStackPanel);
-
-            foreach (KeyValuePair<string, LensMode> modeKP in ActiveLens)
-            {
-                string activeModeName = modeKP.Key;
-                LensMode activeMode = modeKP.Value;
-
-                if (!CurrentMode.Equals(activeModeName))
-                {
-                    MapViewFinder mvf = new MapViewFinder(activeMode.Color)
-                    {
-                        Map = LensMap,
-                        Name = activeModeName,
-                        Layers = new LensFactory().CreateLens(activeModeName).MapLayerCollection,
-                        
-                    };
-                    Canvas.SetZIndex(mvf, activeMode.UIIndex+5);
-                    LayoutRoot.Children.Add(mvf);
-                    mvf.UpdateExtent(ActiveLens[activeModeName].Extent.ToString());
-                }
-            }
-
-            switch (CurrentMode)
-            {
-                case PopulationMode:
-                    ESRI.ArcGIS.Client.Toolkit.Legend legend = new ESRI.ArcGIS.Client.Toolkit.Legend();
-                    legend.Map = BasemapMap;
-                    legend.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
-                    legend.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-                    legend.LayerIDs = new string[] { CurrentMode };
-                    legend.LayerItemsMode = ESRI.ArcGIS.Client.Toolkit.Legend.Mode.Flat;
-                    legend.ShowOnlyVisibleLayers = true;
-                    Canvas.SetZIndex(legend, 99);
-                    LayoutRoot.Children.Add(legend);
-                    break;
-                default:
-                    break;
-            }
-            
-            UpdateExtent(CurrentLensMode.Extent.ToString());
-            UpdateAllLensAccordingCurrentModeExtent(CurrentLensMode.Extent.Extent);
-        }
-
-
-
-
 
         # region BroadcastCurrentExtent(), SendRemoveLensModeMessage()
         private void BroadcastCurrentExtent()
@@ -322,37 +169,6 @@ namespace ODTablet
         # region General UI Elements
         private void InitializeUIElements()
         {
-            // Initial menu to select the CurrentMode
-            ModesStackPanel = new StackPanel()
-            {
-                Name = "ModesStackPanel",
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
-                VerticalAlignment = System.Windows.VerticalAlignment.Center
-            };
-
-            ModesStackPanel.Children.Add(CreateStackPanelButton(PopulationMode, PopulationMode_Click));
-            ModesStackPanel.Children.Add(CreateStackPanelButton(ElectoralDistrictsMode, ElectoralDistricts_Click));
-            ModesStackPanel.Children.Add(CreateStackPanelButton(SatelliteMode, SatelliteMode_Click));
-            ModesStackPanel.Children.Add(CreateStackPanelButton(StreetMode, StreetsMode_Click));
-            ModesStackPanel.Children.Add(CreateStackPanelButton(CitiesMode, CitiesMode_Click));
-            ModesStackPanel.Children.Add(CreateStackPanelButton("Remove all lens", SendRemoveAllLensCommand_Click));
-            
-            ModesStackPanel.Children.Add(CreateStackPanelButton("All modes msg", GetAllModes_Click));
-
-            // Back and turn off buttons stack panel
-            BackOffStackPanel = new StackPanel()
-            {
-                Name = "BackOffStackPanel",
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                VerticalAlignment = System.Windows.VerticalAlignment.Top,
-                Orientation = Orientation.Horizontal,
-            };
-
-            BackOffStackPanel.Children.Add(CreateStackPanelButton("Back", BackButton_Click));
-            BackOffStackPanel.Children.Add(CreateStackPanelButton("Turn off lens", TurnOffLens_Click));
-
-            Canvas.SetZIndex(BackOffStackPanel, 99);
-
             // Basemap map
             BasemapMap = new Map()
             {
@@ -370,14 +186,62 @@ namespace ODTablet
                 IsLogoVisible = false,
                 IsHitTestVisible = true
             };
+
+            
+            // Start menu
+            ModesListMenu = new StackPanel()
+            {
+                Name = "ModesListMenu",
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Center
+            };
+
+            // Menu with Back and Turn off buttons
+            BackOffMenu = new StackPanel()
+            {
+                Name = "BackOffMenu",
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                Orientation = Orientation.Horizontal,
+            };
+
+            // Adding buttons for each menu
+            ModesListMenu.Children.Add(CreateStackPanelButton(PopulationMode, ModeButton_Click));
+            ModesListMenu.Children.Add(CreateStackPanelButton(ElectoralDistrictsMode, ModeButton_Click));
+            ModesListMenu.Children.Add(CreateStackPanelButton(SatelliteMode, ModeButton_Click));
+            ModesListMenu.Children.Add(CreateStackPanelButton(StreetMode, ModeButton_Click));
+            ModesListMenu.Children.Add(CreateStackPanelButton(CitiesMode, ModeButton_Click));
+            //ModesListMenu.Children.Add(CreateStackPanelButton("Remove all lens", SendRemoveAllLensCommand_Click));
+            //ModesListMenu.Children.Add(CreateStackPanelButton("All modes msg", GetAllModes_Click));
+
+            //BackOffMenu.Children.Add(CreateStackPanelButton("Back", BackButton_Click));
+            BackOffMenu.Children.Add(CreateStackPanelButton("Turn off lens", TurnOffLens_Click));
+
+            // Canvas position
+            Canvas.SetZIndex(BackOffMenu, 99);
+
             LensMap.ExtentChanging += LensMap_ExtentChanging;
+
         }
 
-        private void GetAllModes_Click(object sender, RoutedEventArgs e)
+        
+        private void DisplayStartMenu()
         {
-            SendMsgToGetActiveModesFromTable();
+            LayoutRoot.Children.Clear();
+            LayoutRoot.Children.Add(ModesListMenu);
+            DetailWindow.Title = "Detail";
         }
 
+        private void ClearMapCanvas()
+        {
+            Console.WriteLine("Cleaning map...");
+            CurrentMode = null; // TODO : Is this really here?
+            LensMap.Layers.Clear();
+            BasemapMap.Layers.Clear();
+            LayoutRoot.Children.Clear();
+        }
+
+        # region Buttons
         private Button CreateStackPanelButton(string content, RoutedEventHandler reh)
         {
             Button b = new Button();
@@ -385,131 +249,82 @@ namespace ODTablet
             b.Width = 100;
             b.Height = 50;
             b.Click += reh;
+            try
+            {
+                b.Name = content;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Fail: " + e.Message);
+            }
+
             return b;
         }
 
-        private void ModeActivated()
+        private void ModeButton_Click(object sender, RoutedEventArgs e)
         {
-            //LayoutRoot.Children.Remove(ModesStackPanel);
-            LayoutRoot.Children.Clear();
-            LayoutRoot.Children.Add(BasemapMap);
-            LayoutRoot.Children.Add(LensMap);
-            LayoutRoot.Children.Add(BackOffStackPanel);
-        }
-
-        private void ModeDeactivated()
-        {
-            //LayoutRoot.Children.Remove(BackOffStackPanel);
-            LayoutRoot.Children.Clear();
-            LayoutRoot.Children.Add(ModesStackPanel);
+            //SendMsgToGetActiveModesFromTable();
+            CurrentMode = ((Button)sender).Name;
+            InitializeModeUI();
+            BroadcastCurrentExtent();
         }
 
         private void TurnOffLens_Click(object sender, RoutedEventArgs e)
         {
             SendRemoveLensModeMessage();
+            ActiveLens.Remove(CurrentMode);
+            ClearMapCanvas();
+            DisplayStartMenu();
         }
 
-        private void SendRemoveAllLensCommand_Click(object sender, RoutedEventArgs e)
+
+        # endregion
+        # endregion
+
+
+        private void InitializeModeUI()
         {
-            ActiveLens = new Dictionary<string, LensMode>();
-            CurrentMode = "All"; // TODO: Hardcoding CurrentMode. Too bad.
-            SendRemoveLensModeMessage();
-        }
+            Console.WriteLine("Initializing " + CurrentMode + " mode...");
+            DetailWindow.Title = CurrentMode;
 
-        private void BackButton_Click(object sender, RoutedEventArgs e)
-        {
-            ClearMap();
-            ModeDeactivated();
-        }
+            LayoutRoot.Children.Clear();
 
-        #endregion
+            ActivateMode(CurrentMode);
 
+            LensMode CurrentLensMode = ActiveLens[CurrentMode];
 
-        private Envelope StringToEnvelope(String extentString)
-        {
-            double[] extentPoints = Array.ConvertAll(extentString.Split(','), Double.Parse);
-            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
-            myEnvelope.XMin = extentPoints[0];
-            myEnvelope.YMin = extentPoints[1];
-            myEnvelope.XMax = extentPoints[2];
-            myEnvelope.YMax = extentPoints[3];
-            myEnvelope.SpatialReference = this.BasemapMap.SpatialReference;
-            return myEnvelope;
-        }
+            LensMode basem = new LensFactory().CreateLens(BaseMap);
+            BasemapMap.Layers.Add(basem.MapLayer);
+            BasemapMap.Extent = CurrentLensMode.Extent;
+            Canvas.SetZIndex(LensMap, 0);
+            
+            LensMap.Layers.Add(CurrentLensMode.MapLayer);
+            LensMap.Extent = CurrentLensMode.Extent;
+            Canvas.SetZIndex(LensMap, CurrentLensMode.UIIndex + 5);
 
-        private void UpdateExtent(string extentString)
-        {
-            LensMap.Extent = StringToEnvelope(extentString);
+            LayoutRoot.Children.Add(BasemapMap);
+            LayoutRoot.Children.Add(LensMap);
+            LayoutRoot.Children.Add(BackOffMenu);
+
             BroadcastCurrentExtent();
         }
 
-        private void ClearMap()
+        private void ActivateMode(string mode)
         {
-            Console.WriteLine("Cleaning map...");
-            CurrentMode = null;
-            LensMap.Layers.Clear();
-            BasemapMap.Layers.Clear();
+            if (!ActiveLens.ContainsKey(mode))
+            {
+                ActiveLens.Add(mode, new LensFactory().CreateLens(mode));
+                ActiveLens[mode].UIIndex = ActiveLens.Count();
+            }
         }
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
             BasemapMap.Extent = e.NewExtent;
             ActiveLens[CurrentMode].Extent = e.NewExtent;
-            UpdateAllLensAccordingCurrentModeExtent(ActiveLens[CurrentMode].Extent);
+            //UpdateAllLensAccordingCurrentModeExtent(ActiveLens[CurrentMode].Extent);
             BroadcastCurrentExtent();
         }
-
-        private void UpdateAllLensAccordingCurrentModeExtent(Envelope extent)
-        {
-            foreach (UIElement element in LayoutRoot.Children)
-            {
-                if (element is MapViewFinder)
-                {
-                    // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
-                    ((MapViewFinder)element).UpdateExtent(ActiveLens[((MapViewFinder)element).Name].Extent.ToString());
-                }
-            }
-        }
-
-        # region Mode buttons
-        private void SatelliteMode_Click(object sender, RoutedEventArgs e)
-        {
-            ClearMap();
-            CurrentMode = SatelliteMode;
-            ConfigMap();
-        }
-
-        private void PopulationMode_Click(object sender, RoutedEventArgs e)
-        {
-            ClearMap();
-            CurrentMode = PopulationMode;
-            ConfigMap();
-        }
-
-        private void ElectoralDistricts_Click(object sender, RoutedEventArgs e)
-        {
-            ClearMap();
-            CurrentMode = ElectoralDistrictsMode;
-            ConfigMap();
-        }
-
-        private void StreetsMode_Click(object sender, RoutedEventArgs e)
-        {
-            ClearMap();
-            CurrentMode = StreetMode;
-            ConfigMap();
-        }
-
-        private void CitiesMode_Click(object sender, RoutedEventArgs e)
-        {
-            ClearMap();
-            CurrentMode = CitiesMode;
-            ConfigMap();
-        }
-        #endregion
-
-        
-        
 
 
 

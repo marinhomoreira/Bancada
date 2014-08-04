@@ -172,7 +172,10 @@ namespace ODTablet.LensViewFinder
 
         internal void UpdateExtent(string p)
         {
-            this.UpdateExtent(ExtentStringToArray(p));
+            if(p != null)
+            {
+                this.UpdateExtent(ExtentStringToArray(p));
+            }
         }
 
         private double[] ExtentStringToArray(string extent)

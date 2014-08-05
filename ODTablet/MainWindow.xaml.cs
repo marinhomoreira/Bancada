@@ -74,7 +74,6 @@ namespace ODTablet
             ConfigureSoD();
             ConfigureDevice();
             RegisterSoDEvents();
-            
         }
 
         # region SoD
@@ -142,6 +141,7 @@ namespace ODTablet
             dict.Add("UpdateMode", CurrentMode);
             dict.Add("Extent", ActiveLens[CurrentMode].Extent.ToString());
             SoD.SendDictionaryToDevices(dict, "all");
+            
         }
 
         private void SendRemoveLensModeMessage()
@@ -328,7 +328,7 @@ namespace ODTablet
             }
 
             AddActiveLensesToScreen();
-
+            
             BroadcastCurrentExtent();
             
             UpdateAllLensAccordingCurrentModeExtent();
@@ -343,7 +343,7 @@ namespace ODTablet
 
                 if (!CurrentMode.Equals(activeModeName))
                 {
-                    MapViewFinder mvf = new MapViewFinder(activeMode.Color)
+                    MapViewFinder mvf = new MapViewFinder(activeMode.Color, ActiveLens[activeModeName].Extent.ToString())
                     {
                         Map = LensMap,
                         Name = activeModeName,
@@ -354,6 +354,7 @@ namespace ODTablet
                     mvf.UpdateExtent(ActiveLens[activeModeName].Extent.ToString());
                 }
             }
+            UpdateAllLensAccordingCurrentModeExtent();
         }
 
         private void UpdateAllLensAccordingCurrentModeExtent()
@@ -395,17 +396,15 @@ namespace ODTablet
 
        
 
+
+
+
         private void GetAllModes_Click(object sender, RoutedEventArgs e)
         {
             SendMsgToGetActiveModesFromTable();
         }
 
 
-
-
-
-
-        Dictionary<string, string> TableConfiguration;
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
             String extentString = (String)parsedMessage["data"]["data"]["Extent"];
@@ -415,23 +414,74 @@ namespace ODTablet
 
             if (tableConfiguration != null && tableConfiguration.Equals("All"))
             {
-                //TableConfiguration = parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>();
-                //UpdateLocalConfiguration(TableConfiguration);
-                //UpdateLensExtentMode(updateMode, extentString);
+                //TODO: DIFF DA PORRA TODA COM ACTIVELENS.
+                this.Dispatcher.Invoke((Action)(() => {
+                    UpdateLocalConfiguration(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
+                }));
             }
 
             if (updateMode != null && !updateMode.Equals(CurrentMode))
             {
-                // TODO: IMPLEMENT
+                ActivateMode(updateMode);
+                ActiveLens[updateMode].Extent = StringToEnvelope(extentString);
             }
 
             if (removeMode != null && !removeMode.Equals(CurrentMode))
             {
                 ActiveLens.Remove(removeMode);
             }
+            
+            //TODO: Update UI based on ActiveLens
         }
 
+        private void UpdateLocalConfiguration(Dictionary<string, string> RemoteTableConfiguration)
+        {
+            List<string> remoteActiveModes = new List<string>();
+            if(RemoteTableConfiguration.Count != 0)
+            {
+                foreach (KeyValuePair<string, string> remoteMode in RemoteTableConfiguration)
+                {
+                    string remoteModeName = remoteMode.Key;
+                    string remoteModeExtent = remoteMode.Value;
+                    Console.WriteLine("Received Mode "+remoteModeName + " with extent " + remoteModeExtent);
+                    if (!remoteModeName.Equals("TableActiveModes"))
+                    {
+                        remoteActiveModes.Add(remoteModeName);
 
+                        ActivateMode(remoteModeName);
+
+                        // Compare extents.
+                        // If remote is different, update local extent
+                        Envelope newEnv = StringToEnvelope(remoteModeExtent);
+                        if (ActiveLens[remoteModeName].Extent != newEnv)
+                        {
+                            ActiveLens[remoteModeName].Extent = newEnv;
+                        }
+                        // Compare Z positions
+                        // If remote is different, update local Z position
+                        if (ActiveLens[remoteModeName].UIIndex != remoteActiveModes.IndexOf(remoteModeName))
+                        {
+                            // Update Z position
+                            ActiveLens[remoteModeName].UIIndex = remoteActiveModes.IndexOf(remoteModeName);
+                        }
+                    }
+                }
+
+            }
+            
+        }
+
+        private Envelope StringToEnvelope(String extentString)
+        {
+            double[] extentPoints = Array.ConvertAll(extentString.Split(','), Double.Parse);
+            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
+            myEnvelope.XMin = extentPoints[0];
+            myEnvelope.YMin = extentPoints[1];
+            myEnvelope.XMax = extentPoints[2];
+            myEnvelope.YMax = extentPoints[3];
+            myEnvelope.SpatialReference = this.BasemapMap.SpatialReference;
+            return myEnvelope;
+        }
 
 
 

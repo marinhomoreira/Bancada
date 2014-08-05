@@ -6,7 +6,6 @@
         xmlns:esri="http://schemas.esri.com/arcgis/client/2009"
         xmlns:local="clr-namespace:ODTablet"
         x:Name="DetailWindow"
-        Closing="DetailWindow_Closing"
         >
     <Grid x:Name="LayoutRoot">
     </Grid>

@@ -29,15 +29,14 @@ namespace ODTablet.LensViewFinder
         private Cursor _cursor = null;
         private bool _isdrag = false;
 
-        public MapViewFinder()
-            : this(Colors.Black)
-        {
-        }
+        private String lastValidExtent;
 
-        public MapViewFinder(Color BorderColor)
+        public MapViewFinder(Color BorderColor, String extent)
         {
             InitializeComponent();
             this.MagShadow.Stroke = new SolidColorBrush(BorderColor);
+            lastValidExtent = extent;
+            UpdateExtent(lastValidExtent);
         }
 
         public static readonly DependencyProperty MapProperty =
@@ -89,10 +88,22 @@ namespace ODTablet.LensViewFinder
         // TODO: REMOVE?
         private void Map_ExtentChanged(object sender, ExtentEventArgs e)
         {
-            UpdateExtent(this.VFMap.Extent.ToString());
+            UpdateExtentAccordingToLastValid();
         }
 
-        
+        private void UpdateExtentAccordingToLastValid()
+        {
+            if (this.VFMap.Extent == null)
+            {
+                UpdateExtent(lastValidExtent);
+            }
+            else
+            {
+                UpdateExtent(this.VFMap.Extent.ToString());
+            }
+        }
+
+
 
         public void UpdateExtent(double[] extent)
         {
@@ -116,6 +127,7 @@ namespace ODTablet.LensViewFinder
                     ResizeWindow(MapLensIntersectionExtent);
                     TranslateVF(MapLensIntersectionExtent);
                     this.VFMap.Extent = MapLensIntersectionExtent;
+                    lastValidExtent = this.VFMap.Extent.ToString();
                 }
                 catch (InvalidOperationException e)
                 {

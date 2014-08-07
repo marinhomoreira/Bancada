@@ -93,6 +93,7 @@
   <ItemGroup>
     <Compile Include="MapModel\LensFactory.cs" />
     <Compile Include="MapModel\LensMode.cs" />
+    <Compile Include="MapModel\MapBoard.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

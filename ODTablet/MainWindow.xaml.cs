@@ -181,18 +181,26 @@ namespace ODTablet
 
         private void UpdateAllLensAccordingCurrentModeExtent() // TODO: Update a specific lens maybe?
         {
-            foreach (UIElement element in LayoutRoot.Children)
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
             {
-                if (element is MapViewFinder)
+                if (LayoutRoot.Children[i] is MapViewFinder)
                 {
-                    LensType type = MapBoard.StringToLensType(((MapViewFinder)element).Name);
-
-                    // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
-                    ((MapViewFinder)element).UpdateExtent(Board.ViewFindersOf(CurrentLens)[type].Extent.ToString());
-                    if (Grid.GetZIndex(element) != Board.ViewFindersOf(CurrentLens)[type].UIIndex)
+                    LensType type = MapBoard.StringToLensType(((MapViewFinder)LayoutRoot.Children[i]).Name);
+                    if (Board.ViewFindersOf(CurrentLens).ContainsKey(type))
                     {
-                        Grid.SetZIndex(element, Board.ViewFindersOf(CurrentLens)[type].UIIndex);
+                        // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
+                        ((MapViewFinder)LayoutRoot.Children[i]).UpdateExtent(Board.ViewFindersOf(CurrentLens)[type].Extent.ToString());
+                        if (Grid.GetZIndex(LayoutRoot.Children[i]) != Board.ViewFindersOf(CurrentLens)[type].UIIndex)
+                        {
+                            Grid.SetZIndex(LayoutRoot.Children[i], Board.ViewFindersOf(CurrentLens)[type].UIIndex);
+                        }
                     }
+
+                    else
+                    {
+                        LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
+                    }
+                    
                 }
             }
         }
@@ -327,6 +335,7 @@ namespace ODTablet
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.Overview, AppModeButton_Click));
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.MultipleLenses, AppModeButton_Click));
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.SingleLens, AppModeButton_Click));
+            AppModeMenu.Children.Add(CreateStackPanelButton("Reset all devices", SendRemoveAllLensCommand_Click));
 
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Population.ToString(), ModeButton_Click));
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.ElectoralDistricts.ToString(), ModeButton_Click));
@@ -384,10 +393,10 @@ namespace ODTablet
 
         private void DisplayStartMenu()
         {
+            ClearMapCanvas();
             CurrentAppMode = MapBoardMode.None;
             LayoutRoot.Children.Clear();
             LayoutRoot.Children.Add(AppModeMenu);
-            DetailWindow.Title = "Detail";
         }
 
         private void DisplayLensSelectionMenu()
@@ -467,11 +476,8 @@ namespace ODTablet
 
         private void SendRemoveAllLensCommand_Click(object sender, RoutedEventArgs e)
         {
-            //ActiveLens.Clear();
-            ClearMapCanvas();
-            //CurrentMode = "All"; // TODO: Hardcoding CurrentMode. Too bad.
-            //SendRemoveLensModeMessage();
-            DisplayLensSelectionMenu();
+            Board.RemoveLens(LensType.All);
+            SendResetAppMessage();
         }
 
         private void AppModeButton_Click(object sender, RoutedEventArgs e)
@@ -515,6 +521,13 @@ namespace ODTablet
         {
             Dictionary<string, string> dict = new Dictionary<string, string>();
             dict.Add("RemoveMode", CurrentLens.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
+        }
+
+        private void SendResetAppMessage()
+        {
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("RemoveMode", LensType.All.ToString());
             SoD.SendDictionaryToDevices(dict, "all");
         }
 
@@ -624,10 +637,20 @@ namespace ODTablet
                 this.Dispatcher.Invoke((Action)(() =>
                 {
                     LensType lens = MapBoard.StringToLensType(removeMode);
-                    RemoveViewFinderFromScreen(lens); // TODO: SHOULD BE FROM EVENT! // Is it working? No idea! Too tired for this! Lalalalalala~
+                    if (lens.Equals(LensType.All))
+                    {
+                        ResetApp();
+                        return;
+                    }
                     Board.RemoveLens(lens);
                 }));
             }
+        }
+
+        private void ResetApp()
+        {
+            Board.RemoveLens(LensType.All);
+            DisplayStartMenu();
         }
 
         private void BroadcastAllActiveModes()
@@ -642,8 +665,6 @@ namespace ODTablet
         {
             if (e.Key == Key.F2)
             {
-                CurrentAppMode = MapBoardMode.None;
-                ClearMapCanvas();
                 DisplayStartMenu();
             }
         }

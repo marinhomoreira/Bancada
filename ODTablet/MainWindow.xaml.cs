@@ -35,7 +35,8 @@ namespace ODTablet
         private StackPanel
                         AppModeMenu
                         , LensSelectionMenu
-                        , BackOffMenu;
+                        , BackOffMenu
+                        , OverviewMenu;
         private Map
                 BasemapMap
                 , LensMap;
@@ -55,6 +56,7 @@ namespace ODTablet
             Board.LensCollectionChanged += Board_LensCollectionChanged;
             Board.ViewFindersChanged += Board_ViewFindersChanged;
             CurrentLens = LensType.None;
+            CurrentAppMode = MapBoardMode.None;
             // SOD stuff
             ConfigureSoD();
             ConfigureDevice();
@@ -72,8 +74,6 @@ namespace ODTablet
         void Board_LensCollectionChanged(object sender, EventArgs e)
         {
             Console.WriteLine("FIRE IN THA EVENT");
-            // TODO: update UI from here! :D
-            //UpdateAllLensAccordingCurrentModeExtent();
             if (CurrentAppMode != MapBoardMode.None)
             {
                 RefreshUI();
@@ -82,7 +82,7 @@ namespace ODTablet
 
         void RefreshUI()
         {
-            
+            // TODO : map refresh? not sure... it's working right now, i guess....
             RefreshViewFinders();
         }
 
@@ -97,20 +97,42 @@ namespace ODTablet
             DetailWindow.Title = CurrentLens.ToString(); // Change Window Title according to the mode.
 
             LayoutRoot.Children.Clear();
+            if (CurrentAppMode == MapBoardMode.Overview)
+            {
+                // TODO : CUT CUT CUT REUSE REUSE REUSE YEAH BABE!
+                Lens CurrentLensMode = Board.GetLens(CurrentLens);
+                LensMap.Layers.Add(CurrentLensMode.MapLayer);
+                LensMap.Extent = CurrentLensMode.Extent;
+                Grid.SetZIndex(LensMap, CurrentLensMode.UIIndex);
+
+                Lens basem = Board.GetLens(LensType.Basemap);
+                BasemapMap.Layers.Add(MapBoard.GenerateMapLayerCollection(CurrentLens)[0]);
+                BasemapMap.Extent = CurrentLensMode.Extent;
+                Grid.SetZIndex(BasemapMap, 0);
+
+                LayoutRoot.Children.Add(BasemapMap);
+                LayoutRoot.Children.Add(LensMap);
+                LayoutRoot.Children.Add(OverviewMenu);
+                DetailWindow.Title = "Overview";
+            }
+            else
+            {
+                Lens CurrentLensMode = Board.GetLens(CurrentLens);
+                LensMap.Layers.Add(CurrentLensMode.MapLayer);
+                LensMap.Extent = CurrentLensMode.Extent;
+                Grid.SetZIndex(LensMap, CurrentLensMode.UIIndex);
+
+                Lens basem = Board.GetLens(LensType.Basemap);
+                BasemapMap.Layers.Add(basem.MapLayer);
+                BasemapMap.Extent = CurrentLensMode.Extent;
+                Grid.SetZIndex(BasemapMap, 0);
+
+                LayoutRoot.Children.Add(BasemapMap);
+                LayoutRoot.Children.Add(LensMap);
+                LayoutRoot.Children.Add(BackOffMenu);
+            }
+
             
-            Lens CurrentLensMode = Board.GetLens(CurrentLens);
-            LensMap.Layers.Add(CurrentLensMode.MapLayer);
-            LensMap.Extent = CurrentLensMode.Extent;
-            Grid.SetZIndex(LensMap, CurrentLensMode.UIIndex);
-
-            Lens basem = Board.GetLens(LensType.Basemap);
-            BasemapMap.Layers.Add(basem.MapLayer);
-            BasemapMap.Extent = CurrentLensMode.Extent;
-            Grid.SetZIndex(BasemapMap, 0);
-
-            LayoutRoot.Children.Add(BasemapMap);
-            LayoutRoot.Children.Add(LensMap);
-            LayoutRoot.Children.Add(BackOffMenu);
 
             if (CurrentLens.Equals(LensType.Population))
             {
@@ -157,7 +179,7 @@ namespace ODTablet
             }
         }
 
-        private void UpdateAllLensAccordingCurrentModeExtent() // TODO: Update just dat lens!
+        private void UpdateAllLensAccordingCurrentModeExtent() // TODO: Update a specific lens maybe?
         {
             foreach (UIElement element in LayoutRoot.Children)
             {
@@ -293,6 +315,14 @@ namespace ODTablet
                 Orientation = Orientation.Horizontal,
             };
 
+            OverviewMenu = new StackPanel()
+            {
+                Name = "Overview",
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                Orientation = Orientation.Horizontal,
+            };
+
             // Adding buttons for each menu
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.Overview, AppModeButton_Click));
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.MultipleLenses, AppModeButton_Click));
@@ -309,24 +339,47 @@ namespace ODTablet
             BackOffMenu.Children.Add(CreateStackPanelButton("Change lens", BackButton_Click));
             BackOffMenu.Children.Add(CreateStackPanelButton("Turn off this lens", TurnOffLens_Click));
 
+            OverviewMenu.Children.Add(CreateStackPanelButton("Remove all lenses", RemoveAllLens_Click));
+            OverviewMenu.Children.Add(CreateStackPanelButton("Reset Map", InitialState_Click));
+
             // Canvas position
             Canvas.SetZIndex(BackOffMenu, 99);
+            Canvas.SetZIndex(OverviewMenu, 99);
+        }
+
+        private void InitialState_Click(object sender, RoutedEventArgs e)
+        {
+            this.BasemapMap.Extent = MapBoard.InitialExtentFrom(LensType.Basemap); //Initial extent
+            this.LensMap.Extent = this.BasemapMap.Extent;
+        }
+
+        private void RemoveAllLens_Click(object sender, RoutedEventArgs e)
+        {
+            RemoveAllViewFinders();
         }
 
 
         private void InitializeSingleLensMode()
         {
+            CurrentAppMode = MapBoardMode.SingleLens;
             DisplayLensSelectionMenu();
         }
 
         private void InitializeMultipleLensesMode()
         {
+            CurrentAppMode = MapBoardMode.MultipleLenses;
             DisplayLensSelectionMenu();
         }
 
         private void InitializeOverviewMode()
         {
-            throw new NotImplementedException();
+            // TODO : CUT CUT CUT REUSE REUSE REUSE YEAH BABE!
+            CurrentAppMode = MapBoardMode.Overview;
+            LayoutRoot.Children.Clear();
+            LayoutRoot.Children.Add(OverviewMenu);
+            DetailWindow.Title = "Overview";
+            CurrentLens = LensType.Basemap;
+            InitializeModeUI();
         }
 
         private void DisplayStartMenu()
@@ -395,9 +448,8 @@ namespace ODTablet
 
         private void TurnOffLens_Click(object sender, RoutedEventArgs e)
         {
-            SendRemoveLensModeMessage(); // TODO
+            SendRemoveLensModeMessage();
             Board.RemoveLens(CurrentLens);
-            //RemoveViewFinderFromScreen(LensType.None);
             ClearMapCanvas();
             DisplayLensSelectionMenu();
         }
@@ -461,7 +513,6 @@ namespace ODTablet
 
         private void SendRemoveLensModeMessage()
         {
-            // TODO
             Dictionary<string, string> dict = new Dictionary<string, string>();
             dict.Add("RemoveMode", CurrentLens.ToString());
             SoD.SendDictionaryToDevices(dict, "all");
@@ -565,7 +616,6 @@ namespace ODTablet
                 {
                     LensType lens = MapBoard.StringToLensType(updateMode);
                     Board.UpdateLens(lens, extentString);
-                    //UpdateAllLensAccordingCurrentModeExtent(); // TODO: SHOULD BE FROM EVENT!
                 }));
             }
 
@@ -574,7 +624,7 @@ namespace ODTablet
                 this.Dispatcher.Invoke((Action)(() =>
                 {
                     LensType lens = MapBoard.StringToLensType(removeMode);
-                    RemoveViewFinderFromScreen(lens); // TODO: SHOULD BE FROM EVENT!
+                    RemoveViewFinderFromScreen(lens); // TODO: SHOULD BE FROM EVENT! // Is it working? No idea! Too tired for this! Lalalalalala~
                     Board.RemoveLens(lens);
                 }));
             }
@@ -588,69 +638,15 @@ namespace ODTablet
         }
 
 
-
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
         {
             if (e.Key == Key.F2)
             {
-                MessageBox.Show("Function F2");
-                // TODO
+                CurrentAppMode = MapBoardMode.None;
+                ClearMapCanvas();
+                DisplayStartMenu();
             }
         }
-
-
-
-
-
-
-
-
-        //private void UpdateLocalConfiguration(Dictionary<string, string> RemoteTableConfiguration)
-        //{
-        //    List<string> remoteActiveModes = new List<string>();
-        //    if (RemoteTableConfiguration.Count != 0)
-        //    {
-        //        foreach (KeyValuePair<string, string> remoteMode in RemoteTableConfiguration)
-        //        {
-        //            string remoteModeName = remoteMode.Key;
-        //            string remoteModeExtent = remoteMode.Value;
-        //            Console.WriteLine("Received Mode " + remoteModeName + " with extent " + remoteModeExtent);
-        //            if (!remoteModeName.Equals("TableActiveModes"))
-        //            {
-        //                remoteActiveModes.Add(remoteModeName);
-
-        //                ActivateMode(remoteModeName);
-
-        //                // Compare extents.
-        //                // If remote is different, update local extent
-        //                Envelope newEnv = StringToEnvelope(remoteModeExtent);
-        //                if (ActiveLens[remoteModeName].extent != newEnv)
-        //                {
-        //                    ActiveLens[remoteModeName].extent = newEnv;
-        //                }
-        //                // Compare Z positions
-        //                // If remote is different, update local Z position
-        //                if (ActiveLens[remoteModeName].UIIndex != remoteActiveModes.IndexOf(remoteModeName))
-        //                {
-        //                    // Update Z position
-        //                    ActiveLens[remoteModeName].UIIndex = remoteActiveModes.IndexOf(remoteModeName);
-        //                }
-        //            }
-        //        }
-
-        //    }
-
-        //}
-
-
-
-
-
-
-
-
-
-
 
     }
 }

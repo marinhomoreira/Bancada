@@ -266,5 +266,10 @@ namespace ODTablet.MapModel
             return (MapBoardMode)Enum.Parse(typeof(MapBoardMode), mapboardMode, true);
         }
 
+
+        internal static Envelope InitialExtentFrom(LensType lens)
+        {
+            return new LensFactory().CreateLens(lens).Extent;
+        }
     }
 }

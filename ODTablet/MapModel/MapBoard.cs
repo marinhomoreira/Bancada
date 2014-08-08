@@ -18,8 +18,9 @@ namespace ODTablet.MapModel
     {
         private Dictionary<LensType, Lens> _lensCollection;
 
-        public event ChangedEventHandler Changed;
-
+        public event ChangedEventHandler LensCollectionChanged;
+        public event ChangedEventHandler ViewFindersChanged;
+        
         public Dictionary<LensType, Lens> ActiveLenses
         {
             get { return _lensCollection; }
@@ -30,7 +31,7 @@ namespace ODTablet.MapModel
             _lensCollection = new Dictionary<LensType, Lens>();
         }
         
-        int zIndexCounter = 0;
+        int zIndexCounter = 1;
         bool isDirty = false;
 
         # region UpdateLens
@@ -46,7 +47,7 @@ namespace ODTablet.MapModel
             Envelope e = StringToEnvelope(extent);
             UpdateLens(lens, e);
         }
-                
+
         public void UpdateLens(LensType lens, Envelope extent)
         {
             if (!LensIsActive(lens) && LensCanBeActivated(lens))
@@ -59,6 +60,7 @@ namespace ODTablet.MapModel
                 {
                     _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
                 }
+                lensStack.Add(lens);
                 isDirty = true;
             }
             else
@@ -69,7 +71,7 @@ namespace ODTablet.MapModel
                     isDirty = true;
                 }
             }
-
+            UpdateZIndex(lens, -1);
             SendEventIfDirty();
         }
 
@@ -78,7 +80,7 @@ namespace ODTablet.MapModel
             UpdateLens(lens, extent);
             if(LensIsActive(lens))
             {
-                UpdateZIndex(lens, ZIndex);
+                UpdateZIndex(lens, -1);
             }
             SendEventIfDirty();
         }
@@ -96,11 +98,18 @@ namespace ODTablet.MapModel
             }
         }
 
+        private List<LensType> lensStack = new List<LensType>();
+
         public void UpdateZIndex(LensType lens, int? zIndex)
         {
             if (lens == LensType.Basemap && _lensCollection[LensType.Basemap].UIIndex != 0)
             {
                 _lensCollection[lens].UIIndex = 0;
+                return;
+            }
+            if (zIndex != null && (int)zIndex == -1)
+            {
+                _lensCollection[lens].UIIndex = lensStack.IndexOf(lens)+1;
                 return;
             }
 
@@ -121,7 +130,7 @@ namespace ODTablet.MapModel
         {
             if(isDirty)
             {
-                OnChanged(EventArgs.Empty);
+                OnLensCollectionChanged(EventArgs.Empty);
                 isDirty = false;
             }
         }
@@ -145,22 +154,38 @@ namespace ODTablet.MapModel
             return _lensCollection[lens];
         }
 
-        public LayerCollection GenerateMapLayerCollection(LensType lens) // Method used to create new layers and avoid the "Layer is being used by another map" problem.
+        public Dictionary<LensType, Lens> ViewFindersOf(LensType lens)
+        {
+            Dictionary<LensType, Lens> vfal = new Dictionary<LensType,Lens>();
+            foreach(KeyValuePair<LensType, Lens> viewfinder in _lensCollection)
+            {
+                if (viewfinder.Key != lens 
+                    && viewfinder.Key != LensType.Basemap 
+                    && viewfinder.Key != LensType.None 
+                    && viewfinder.Key != LensType.All)
+                {
+                    vfal.Add(viewfinder.Key, viewfinder.Value);
+                }
+            }
+            return vfal;
+        }
+
+        public static LayerCollection GenerateMapLayerCollection(LensType lens) // Method used to create new layers and avoid the "Layer is being used by another map" problem.
         {
             return new LensFactory().CreateLens(lens).MapLayerCollection;
         }
-
 
         public bool RemoveLens(LensType lens)
         {
             if (LensIsActive(lens))
             {
                 _lensCollection.Remove(lens);
-                OnChanged(EventArgs.Empty);
+                OnLensCollectionChanged(EventArgs.Empty);
                 return true;
             } else if(lens == LensType.All)
             {
                 _lensCollection.Clear();
+                OnLensCollectionChanged(EventArgs.Empty);
                 return true;
             }
             return false;
@@ -182,7 +207,7 @@ namespace ODTablet.MapModel
 
         private bool LensIsActive(LensType lens)
         {
-            return (!_lensCollection.ContainsKey(lens) || _lensCollection[lens] == null);
+            return (_lensCollection.ContainsKey(lens) && _lensCollection[lens] != null);
         }
 
         private bool LensCanBeActivated(LensType lens)
@@ -203,11 +228,19 @@ namespace ODTablet.MapModel
             }
         }
 
-        protected virtual void OnChanged(EventArgs e)
+        protected virtual void OnLensCollectionChanged(EventArgs e)
         {
-            if (Changed != null)
+            if (LensCollectionChanged != null)
             {
-                Changed(this, e);
+                LensCollectionChanged(this, e);
+            }
+        }
+
+        protected virtual void OnViewFindersChanged(EventArgs e)
+        {
+            if (ViewFindersChanged != null)
+            {
+                ViewFindersChanged(this, e);
             }
         }
 

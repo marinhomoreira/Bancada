@@ -190,6 +190,14 @@ namespace ODTablet.LensViewFinder
             }
         }
 
+        internal void UpdateExtent()
+        {
+            if(this.lastValidExtent != null)
+            {
+                UpdateExtent(lastValidExtent);
+            }
+        }
+
         private double[] ExtentStringToArray(string extent)
         {
             return Array.ConvertAll(extent.Split(','), Double.Parse);

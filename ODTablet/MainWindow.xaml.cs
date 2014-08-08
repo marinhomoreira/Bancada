@@ -52,7 +52,8 @@ namespace ODTablet
             DisplayStartMenu();
 
             Board = new MapBoard();
-            Board.Changed += Board_Changed;
+            Board.LensCollectionChanged += Board_LensCollectionChanged;
+            Board.ViewFindersChanged += Board_ViewFindersChanged;
             CurrentLens = LensType.None;
             // SOD stuff
             ConfigureSoD();
@@ -60,10 +61,22 @@ namespace ODTablet
             RegisterSoDEvents();
         }
 
-        void Board_Changed(object sender, EventArgs e)
+        void Board_ViewFindersChanged(object sender, EventArgs e)
         {
-            Console.WriteLine("UGA UGA EEEEEEEEEEEEEEEEEEEEEEEEE PORRA!");
+            UpdateAllLensAccordingCurrentModeExtent();
+        }
+
+        void Board_LensCollectionChanged(object sender, EventArgs e)
+        {
+            Console.WriteLine("FIRE IN THA EVENT");
             // TODO: update UI from here! :D
+            //UpdateAllLensAccordingCurrentModeExtent();
+            RefreshUI();
+        }
+
+        void RefreshUI()
+        {
+            RefreshViewFinders();
         }
 
 
@@ -83,16 +96,16 @@ namespace ODTablet
             DetailWindow.Title = CurrentLens.ToString(); // Change Window Title according to the mode.
 
             LayoutRoot.Children.Clear();
-
+            
             Lens CurrentLensMode = Board.GetLens(CurrentLens);
+            LensMap.Layers.Add(CurrentLensMode.MapLayer);
+            LensMap.Extent = CurrentLensMode.Extent;
+            Grid.SetZIndex(LensMap, CurrentLensMode.UIIndex);
+
             Lens basem = Board.GetLens(LensType.Basemap);
             BasemapMap.Layers.Add(basem.MapLayer);
             BasemapMap.Extent = CurrentLensMode.Extent;
-            Canvas.SetZIndex(LensMap, 0);
-
-            LensMap.Layers.Add(CurrentLensMode.MapLayer);
-            LensMap.Extent = CurrentLensMode.Extent;
-            Canvas.SetZIndex(LensMap, CurrentLensMode.UIIndex);
+            Grid.SetZIndex(BasemapMap, 0);
 
             LayoutRoot.Children.Add(BasemapMap);
             LayoutRoot.Children.Add(LensMap);
@@ -112,37 +125,38 @@ namespace ODTablet
                 LayoutRoot.Children.Add(legend);
             }
 
-            AddActiveLensesToScreen();
+            InitializeViewFinders();
 
-            //BroadcastCurrentExtent();
+            //BroadcastCurrentExtent(); // TODO
 
-            UpdateAllLensAccordingCurrentModeExtent();
         }
 
-        private void AddActiveLensesToScreen()
+        private void InitializeViewFinders()
         {
-            foreach (KeyValuePair<LensType, Lens> modeKP in Board.ActiveLenses)
+            foreach (KeyValuePair<LensType, Lens> modeKP in Board.ViewFindersOf(CurrentLens))
             {
-                LensType activeModeName = modeKP.Key;
-                Lens activeMode = modeKP.Value;
+                AddViewFinderToScreen(modeKP.Key);
+            }
+        }
 
-                if (!CurrentLens.Equals(activeModeName) && !activeModeName.Equals(LensType.Basemap) && !activeModeName.Equals(LensType.None))
+        private void RefreshViewFinders()
+        {
+            RemoveAllViewFinders();
+            InitializeViewFinders();
+        }
+
+        private void RemoveAllViewFinders()
+        {
+            for (int i = 0; i < LayoutRoot.Children.Count; i++ )
+            {
+                if (LayoutRoot.Children[i] is MapViewFinder)
                 {
-                    MapViewFinder mvf = new MapViewFinder(activeMode.Color, Board.GetLens(activeModeName).Extent.ToString())
-                    {
-                        Map = LensMap,
-                        Name = activeModeName.ToString(),
-                        Layers = Board.GenerateMapLayerCollection(activeModeName), // TODO: HOW TO REMOVE THIS?
-                    };
-                    Canvas.SetZIndex(mvf, activeMode.UIIndex);
-                    LayoutRoot.Children.Add(mvf);
-                    mvf.UpdateExtent(Board.GetLens(activeModeName).Extent.ToString());
+                    LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
                 }
             }
-            UpdateAllLensAccordingCurrentModeExtent();
         }
 
-        private void UpdateAllLensAccordingCurrentModeExtent()
+        private void UpdateAllLensAccordingCurrentModeExtent() // TODO: Update just dat lens!
         {
             foreach (UIElement element in LayoutRoot.Children)
             {
@@ -151,11 +165,43 @@ namespace ODTablet
                     LensType type = MapBoard.StringToLensType(((MapViewFinder)element).Name);
 
                     // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
-                    ((MapViewFinder)element).UpdateExtent(Board.ActiveLenses[type].Extent.ToString());
-                    if (Canvas.GetZIndex(element) != Board.ActiveLenses[type].UIIndex)
+                    ((MapViewFinder)element).UpdateExtent(Board.ViewFindersOf(CurrentLens)[type].Extent.ToString());
+                    if (Grid.GetZIndex(element) != Board.ViewFindersOf(CurrentLens)[type].UIIndex)
                     {
-                        Canvas.SetZIndex(element, Board.ActiveLenses[type].UIIndex);
+                        Grid.SetZIndex(element, Board.ViewFindersOf(CurrentLens)[type].UIIndex);
                     }
+                }
+            }
+        }
+
+        private void AddViewFinderToScreen(LensType viewfinderType)
+        {
+            Lens viewfinder = Board.GetLens(viewfinderType);
+            MapViewFinder mvf = new MapViewFinder(viewfinder.Color, viewfinder.Extent.ToString())
+            {
+                Map = LensMap,
+                Name = viewfinderType.ToString(),
+                Layers = MapBoard.GenerateMapLayerCollection(viewfinderType),
+            };
+            Grid.SetZIndex(mvf, viewfinder.UIIndex);
+            LayoutRoot.Children.Add(mvf);
+            mvf.UpdateExtent(viewfinder.Extent.ToString());
+            mvf.Loaded += mvf_Loaded;
+        }
+
+        void mvf_Loaded(object sender, RoutedEventArgs e)
+        {
+            UpdateAllLensAccordingCurrentModeExtent();
+        }
+
+        private void RemoveViewFinderFromScreen(LensType viewfinderType)
+        {
+            // TODO: DO THIS IN A BETTER WAY!
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
+            {
+                if (LayoutRoot.Children[i] is MapViewFinder && viewfinderType.ToString().Equals(((MapViewFinder)LayoutRoot.Children[i]).Name))
+                {
+                    LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
                 }
             }
         }
@@ -165,7 +211,10 @@ namespace ODTablet
             BasemapMap.Extent = e.NewExtent;
             Board.ActiveLenses[CurrentLens].Extent = e.NewExtent;
             UpdateAllLensAccordingCurrentModeExtent();
-            // BroadcastCurrentExtent(); // TODO
+            if (CurrentAppMode != MapBoardMode.Overview)
+            {
+                // BroadcastCurrentExtent(); // TODO
+            }
         }
 
         # endregion
@@ -211,7 +260,6 @@ namespace ODTablet
                 WrapAround = false,
                 IsLogoVisible = false,
                 IsHitTestVisible = true
-            
             };
             LensMap.ExtentChanging += LensMap_ExtentChanging;
 
@@ -346,7 +394,8 @@ namespace ODTablet
         private void TurnOffLens_Click(object sender, RoutedEventArgs e)
         {
             //SendRemoveLensModeMessage(); // TODO
-            //ActiveLens.Remove(CurrentMode); // TODO
+            Board.RemoveLens(CurrentLens);
+            //RemoveViewFinderFromScreen(LensType.None);
             ClearMapCanvas();
             DisplayLensSelectionMenu();
         }
@@ -476,12 +525,17 @@ namespace ODTablet
 
             SoD.socket.On("string", (data) =>
             {
-                //Dictionary<string, dynamic> parsedMessage = SoD.ParseMessageIntoDictionary(data);
+                Dictionary<string, dynamic> parsedMessage = SoD.ParseMessageIntoDictionary(data);
+                String receivedString = (String)parsedMessage["data"]["data"];
+                if (receivedString.Equals("GetAllModes"))
+                {
+                    BroadcastAllActiveModes();
+                }
             });
 
             SoD.socket.On("dictionary", (dict) =>
             {
-                //this.ProcessDictionary(SoD.ParseMessageIntoDictionary(dict)); // TODO
+                this.ProcessDictionary(SoD.ParseMessageIntoDictionary(dict));
             });
 
             // make the socket.io connection
@@ -489,6 +543,8 @@ namespace ODTablet
         }
 
         # endregion
+
+
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
@@ -507,20 +563,25 @@ namespace ODTablet
 
             if (updateMode != null && !updateMode.Equals(CurrentLens.ToString()))
             {
-                //ActivateMode(updateMode);
-                //ActiveLens[updateMode].extent = StringToEnvelope(extent);
-                // TODO
+                LensType lens = MapBoard.StringToLensType(updateMode);
+                Board.UpdateLens(lens, extentString);
+                UpdateAllLensAccordingCurrentModeExtent(); // TODO: SHOULD BE FROM EVENT!
             }
 
             if (removeMode != null && !removeMode.Equals(CurrentLens.ToString()))
             {
-                //ActiveLens.Remove(removeMode);
-                // TODO
+                LensType lens = MapBoard.StringToLensType(removeMode);
+                RemoveViewFinderFromScreen(lens); // TODO: SHOULD BE FROM EVENT!
+                Board.RemoveLens(lens);
             }
-
-            //TODO: Update UI based on ActiveLens
         }
 
+        private void BroadcastAllActiveModes()
+        {
+            Dictionary<string, string> dic = Board.ActiveLensesToDictionary();
+            dic.Add("TableActiveModes", "All");
+            SoD.SendDictionaryToDevices(dic, "all");
+        }
 
 
 

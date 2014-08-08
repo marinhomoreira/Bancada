@@ -54,7 +54,6 @@ namespace ODTablet
             Board = new MapBoard();
             Board.Changed += Board_Changed;
             CurrentLens = LensType.None;
-
             // SOD stuff
             ConfigureSoD();
             ConfigureDevice();
@@ -133,7 +132,7 @@ namespace ODTablet
                     {
                         Map = LensMap,
                         Name = activeModeName.ToString(),
-                        Layers = new LensFactory().CreateLens(activeModeName).MapLayerCollection, // TODO: HOW TO REMOVE THIS?
+                        Layers = Board.GenerateMapLayerCollection(activeModeName), // TODO: HOW TO REMOVE THIS?
                     };
                     Canvas.SetZIndex(mvf, activeMode.UIIndex);
                     LayoutRoot.Children.Add(mvf);
@@ -149,7 +148,7 @@ namespace ODTablet
             {
                 if (element is MapViewFinder)
                 {
-                    LensType type = (LensType)Enum.Parse(typeof(LensType), ((MapViewFinder)element).Name, true);
+                    LensType type = MapBoard.StringToLensType(((MapViewFinder)element).Name);
 
                     // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
                     ((MapViewFinder)element).UpdateExtent(Board.ActiveLenses[type].Extent.ToString());
@@ -339,7 +338,7 @@ namespace ODTablet
         private void ModeButton_Click(object sender, RoutedEventArgs e)
         {
             //SendMsgToGetActiveModesFromTable(); // TODO
-            CurrentLens = (LensType)Enum.Parse(typeof(LensType), ((Button)sender).Name, true);
+            CurrentLens = MapBoard.StringToLensType(((Button)sender).Name);
             InitializeModeUI();
             //BroadcastCurrentExtent(); // TODO
         }
@@ -374,7 +373,7 @@ namespace ODTablet
 
         private void AppModeButton_Click(object sender, RoutedEventArgs e)
         {
-            CurrentAppMode = (MapBoardMode)Enum.Parse(typeof(MapBoardMode), ((Button)sender).Name, true);
+            CurrentAppMode = MapBoard.StringToMapBoardMode(((Button)sender).Name);
             Console.WriteLine("Loading " + CurrentAppMode + " mode.");
             switch (CurrentAppMode)
             {
@@ -407,7 +406,7 @@ namespace ODTablet
             throw new NotImplementedException();
             //Dictionary<string, string> dict = new Dictionary<string, string>();
             //dict.Add("UpdateMode", CurrentMode);
-            //dict.Add("Extent", ActiveLens[CurrentMode].Extent.ToString());
+            //dict.Add("extent", ActiveLens[CurrentMode].extent.ToString());
 
             //SoD.SendDictionaryToDevices(dict, "all");
         }
@@ -493,7 +492,7 @@ namespace ODTablet
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
-            String extentString = (String)parsedMessage["data"]["data"]["Extent"];
+            String extentString = (String)parsedMessage["data"]["data"]["extent"];
             String updateMode = (String)parsedMessage["data"]["data"]["UpdateMode"];
             String removeMode = (String)parsedMessage["data"]["data"]["RemoveMode"];
             String tableConfiguration = (String)parsedMessage["data"]["data"]["TableActiveModes"];
@@ -509,7 +508,7 @@ namespace ODTablet
             if (updateMode != null && !updateMode.Equals(CurrentLens.ToString()))
             {
                 //ActivateMode(updateMode);
-                //ActiveLens[updateMode].Extent = StringToEnvelope(extentString);
+                //ActiveLens[updateMode].extent = StringToEnvelope(extent);
                 // TODO
             }
 
@@ -534,17 +533,58 @@ namespace ODTablet
             }
         }
 
-        private Envelope StringToEnvelope(String extentString)
-        {
-            double[] extentPoints = Array.ConvertAll(extentString.Split(','), Double.Parse);
-            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
-            myEnvelope.XMin = extentPoints[0];
-            myEnvelope.YMin = extentPoints[1];
-            myEnvelope.XMax = extentPoints[2];
-            myEnvelope.YMax = extentPoints[3];
-            myEnvelope.SpatialReference = this.BasemapMap.SpatialReference;
-            return myEnvelope;
-        }
+
+
+
+
+
+
+
+        //private void UpdateLocalConfiguration(Dictionary<string, string> RemoteTableConfiguration)
+        //{
+        //    List<string> remoteActiveModes = new List<string>();
+        //    if (RemoteTableConfiguration.Count != 0)
+        //    {
+        //        foreach (KeyValuePair<string, string> remoteMode in RemoteTableConfiguration)
+        //        {
+        //            string remoteModeName = remoteMode.Key;
+        //            string remoteModeExtent = remoteMode.Value;
+        //            Console.WriteLine("Received Mode " + remoteModeName + " with extent " + remoteModeExtent);
+        //            if (!remoteModeName.Equals("TableActiveModes"))
+        //            {
+        //                remoteActiveModes.Add(remoteModeName);
+
+        //                ActivateMode(remoteModeName);
+
+        //                // Compare extents.
+        //                // If remote is different, update local extent
+        //                Envelope newEnv = StringToEnvelope(remoteModeExtent);
+        //                if (ActiveLens[remoteModeName].extent != newEnv)
+        //                {
+        //                    ActiveLens[remoteModeName].extent = newEnv;
+        //                }
+        //                // Compare Z positions
+        //                // If remote is different, update local Z position
+        //                if (ActiveLens[remoteModeName].UIIndex != remoteActiveModes.IndexOf(remoteModeName))
+        //                {
+        //                    // Update Z position
+        //                    ActiveLens[remoteModeName].UIIndex = remoteActiveModes.IndexOf(remoteModeName);
+        //                }
+        //            }
+        //        }
+
+        //    }
+
+        //}
+
+
+
+
+
+
+
+
+
 
 
     }

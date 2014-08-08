@@ -1,4 +1,6 @@
-﻿using System;
+﻿using ESRI.ArcGIS.Client;
+using ESRI.ArcGIS.Client.Geometry;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,8 +16,9 @@ namespace ODTablet.MapModel
 
     class MapBoard
     {
-        // bool removeLens ()
         private Dictionary<LensType, Lens> _lensCollection;
+
+        public event ChangedEventHandler Changed;
 
         public Dictionary<LensType, Lens> ActiveLenses
         {
@@ -26,42 +29,179 @@ namespace ODTablet.MapModel
         {
             _lensCollection = new Dictionary<LensType, Lens>();
         }
+        
+        int zIndexCounter = 0;
+        bool isDirty = false;
 
-        public bool UpdateLens(String lensName, String Extent)
+        # region UpdateLens
+        public void UpdateLens(String lensName, String extent)
         {
-            OnChanged(EventArgs.Empty);
-            return false;
+            LensType lens = StringToLensType(lensName);
+            Envelope e = StringToEnvelope(extent);
+            UpdateLens(lens, e);
         }
 
-        public bool UpdateLens(Dictionary<string, string> remoteDictionary)
+        public void UpdateLens(LensType lens, String extent)
         {
-            // To do the diff and so on....
-            OnChanged(EventArgs.Empty);
-            return false;
+            Envelope e = StringToEnvelope(extent);
+            UpdateLens(lens, e);
+        }
+                
+        public void UpdateLens(LensType lens, Envelope extent)
+        {
+            if (!LensIsActive(lens) && LensCanBeActivated(lens))
+            {
+                if(extent != null) // TODO: ExtentIsValid()?
+                {
+                    _lensCollection.Add(lens, new LensFactory().CreateLens(lens, extent));
+                }
+                else
+                {
+                    _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
+                }
+                isDirty = true;
+            }
+            else
+            {
+                if (_lensCollection[lens].Extent.ToString().Equals(extent.ToString())) // TODO: Change this for something better!
+                {
+                    _lensCollection[lens].Extent = extent;
+                    isDirty = true;
+                }
+            }
+
+            SendEventIfDirty();
         }
 
-        public Dictionary<string, string> AllLensesDictionary()
+        public void UpdateLens(LensType lens, Envelope extent, int? ZIndex)
         {
-            return null;
+            UpdateLens(lens, extent);
+            if(LensIsActive(lens))
+            {
+                UpdateZIndex(lens, ZIndex);
+            }
+            SendEventIfDirty();
+        }
+
+        public void UpdateLens(Dictionary<string, string> remoteDictionary)
+        {
+            // TODO: diff and so on....
+            // If RemoteTableConfiguration is empty
+            foreach (KeyValuePair<string, string> entry in remoteDictionary)
+            {
+                if (LensCanBeActivated(entry.Key))
+                {
+                    UpdateLens(entry.Key, entry.Value);
+                }
+            }
+        }
+
+        public void UpdateZIndex(LensType lens, int? zIndex)
+        {
+            if (lens == LensType.Basemap && _lensCollection[LensType.Basemap].UIIndex != 0)
+            {
+                _lensCollection[lens].UIIndex = 0;
+                return;
+            }
+
+            if (zIndex == null) // TODO: One condition is missing. What is it? u_u'
+            {
+                _lensCollection[lens].UIIndex = zIndexCounter++; // TODO: I think zIndexCounter doesn't work as expected
+                return;
+            }
+
+            if (_lensCollection[lens].UIIndex != (int)zIndex)
+            {
+                _lensCollection[lens].UIIndex = (int)zIndex;
+            }
+        }
+        # endregion
+        
+        public void SendEventIfDirty()
+        {
+            if(isDirty)
+            {
+                OnChanged(EventArgs.Empty);
+                isDirty = false;
+            }
+        }
+        
+        public Dictionary<string, string> ActiveLensesToDictionary()
+        {
+            Dictionary<string, string> lensesDic = new Dictionary<string,string>();
+            foreach(KeyValuePair<LensType, Lens> lens in _lensCollection)
+            {
+                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString());
+            }
+            return lensesDic;
         }
 
         public Lens GetLens(LensType lens)
         {
-            if (!_lensCollection.ContainsKey(lens) || _lensCollection[lens] == null)
+            if (!LensIsActive(lens))
             {
-                _lensCollection[lens] = new LensFactory().CreateLens(lens);
-                OnChanged(EventArgs.Empty);
+                UpdateLens(lens, null, null);
             }
             return _lensCollection[lens];
         }
 
+        public LayerCollection GenerateMapLayerCollection(LensType lens) // Method used to create new layers and avoid the "Layer is being used by another map" problem.
+        {
+            return new LensFactory().CreateLens(lens).MapLayerCollection;
+        }
+
+
         public bool RemoveLens(LensType lens)
         {
-            OnChanged(EventArgs.Empty);
+            if (LensIsActive(lens))
+            {
+                _lensCollection.Remove(lens);
+                OnChanged(EventArgs.Empty);
+                return true;
+            } else if(lens == LensType.All)
+            {
+                _lensCollection.Clear();
+                return true;
+            }
             return false;
         }
 
-        public event ChangedEventHandler Changed;
+        public bool RemoveLens(string lens)
+        {
+            try
+            {
+                return RemoveLens(StringToLensType(lens));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Invalid lens: " + lens + " " + e.Message);
+                return false;
+            }
+        }
+
+
+        private bool LensIsActive(LensType lens)
+        {
+            return (!_lensCollection.ContainsKey(lens) || _lensCollection[lens] == null);
+        }
+
+        private bool LensCanBeActivated(LensType lens)
+        {
+            return lens != LensType.None && lens != LensType.All;
+        }
+
+        private bool LensCanBeActivated(String lens)
+        {
+            try
+            {
+                return LensCanBeActivated(StringToLensType(lens));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Invalid lens: " + lens + " " + e.Message);
+                return false;
+            }
+        }
 
         protected virtual void OnChanged(EventArgs e)
         {
@@ -71,58 +211,27 @@ namespace ODTablet.MapModel
             }
         }
 
+        private Envelope StringToEnvelope(String extent)
+        {
+            double[] extentPoints = Array.ConvertAll(extent.Split(','), Double.Parse);
+            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
+            myEnvelope.XMin = extentPoints[0];
+            myEnvelope.YMin = extentPoints[1];
+            myEnvelope.XMax = extentPoints[2];
+            myEnvelope.YMax = extentPoints[3];
+            //myEnvelope.SpatialReference = this.BasemapMap.SpatialReference; //TODO: how to define this?
+            return myEnvelope;
+        }
+        
+        public static LensType StringToLensType(string lens)
+        {
+            return (LensType)Enum.Parse(typeof(LensType), lens, true);
+        }
 
-
-        //private void ActivateMode(string mode)
-        //{
-        //    this.Dispatcher.Invoke((Action)(() =>
-        //    {
-        //        if (!ActiveLens.ContainsKey(mode))
-        //        {
-        //            ActiveLens.Add(mode, new LensFactory().CreateLens(mode));
-        //            // There's only two lenses, if you remove the element that is below other and first (aka, has lowest Z and it's in index 0), 
-        //            // when another element is added, it will be added to element 0 and the count will be 1. the resultant index will be 1.
-        //            ActiveLens[mode].UIIndex = ActiveLens.Count() + 1; // TODO: How to define this? Get highest uiindex from all elements in the dictionary?
-        //        }
-        //    }));
-        //}
-
-        //private void UpdateLocalConfiguration(Dictionary<string, string> RemoteTableConfiguration)
-        //{
-        //    List<string> remoteActiveModes = new List<string>();
-        //    if (RemoteTableConfiguration.Count != 0)
-        //    {
-        //        foreach (KeyValuePair<string, string> remoteMode in RemoteTableConfiguration)
-        //        {
-        //            string remoteModeName = remoteMode.Key;
-        //            string remoteModeExtent = remoteMode.Value;
-        //            Console.WriteLine("Received Mode " + remoteModeName + " with extent " + remoteModeExtent);
-        //            if (!remoteModeName.Equals("TableActiveModes"))
-        //            {
-        //                remoteActiveModes.Add(remoteModeName);
-
-        //                ActivateMode(remoteModeName);
-
-        //                // Compare extents.
-        //                // If remote is different, update local extent
-        //                Envelope newEnv = StringToEnvelope(remoteModeExtent);
-        //                if (ActiveLens[remoteModeName].Extent != newEnv)
-        //                {
-        //                    ActiveLens[remoteModeName].Extent = newEnv;
-        //                }
-        //                // Compare Z positions
-        //                // If remote is different, update local Z position
-        //                if (ActiveLens[remoteModeName].UIIndex != remoteActiveModes.IndexOf(remoteModeName))
-        //                {
-        //                    // Update Z position
-        //                    ActiveLens[remoteModeName].UIIndex = remoteActiveModes.IndexOf(remoteModeName);
-        //                }
-        //            }
-        //        }
-
-        //    }
-
-        //}
+        public static MapBoardMode StringToMapBoardMode(string mapboardMode)
+        {
+            return (MapBoardMode)Enum.Parse(typeof(MapBoardMode), mapboardMode, true);
+        }
 
     }
 }

@@ -129,6 +129,15 @@ namespace ODTablet.MapModel
                 );
         }
 
+        public Lens CreateLens(LensType CurrentMode, Envelope extent)
+        {
+            return new Lens(
+                ModeLayerDic[CurrentMode]
+                , extent
+                , VFColorDic[CurrentMode]
+                );
+        }
+
 
     }
 }

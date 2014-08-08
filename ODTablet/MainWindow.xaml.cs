@@ -39,7 +39,7 @@ namespace ODTablet
         private Map
                 BasemapMap
                 , LensMap;
-        private MapBoardMode CurrentAppMode;
+        private MapBoardMode CurrentAppMode = MapBoardMode.None;
         private LensType CurrentLens;
         private MapBoard Board;
         # endregion
@@ -63,7 +63,10 @@ namespace ODTablet
 
         void Board_ViewFindersChanged(object sender, EventArgs e)
         {
-            UpdateAllLensAccordingCurrentModeExtent();
+            if (CurrentAppMode != MapBoardMode.None)
+            {
+                UpdateAllLensAccordingCurrentModeExtent();
+            }
         }
 
         void Board_LensCollectionChanged(object sender, EventArgs e)
@@ -71,19 +74,17 @@ namespace ODTablet
             Console.WriteLine("FIRE IN THA EVENT");
             // TODO: update UI from here! :D
             //UpdateAllLensAccordingCurrentModeExtent();
-            RefreshUI();
+            if (CurrentAppMode != MapBoardMode.None)
+            {
+                RefreshUI();
+            }
         }
 
         void RefreshUI()
         {
+            
             RefreshViewFinders();
         }
-
-
-
-
-
-
 
 
         # region Map UI
@@ -127,7 +128,7 @@ namespace ODTablet
 
             InitializeViewFinders();
 
-            //BroadcastCurrentExtent(); // TODO
+            BroadcastCurrentExtent();
 
         }
 
@@ -213,7 +214,7 @@ namespace ODTablet
             UpdateAllLensAccordingCurrentModeExtent();
             if (CurrentAppMode != MapBoardMode.Overview)
             {
-                // BroadcastCurrentExtent(); // TODO
+                BroadcastCurrentExtent();
             }
         }
 
@@ -330,6 +331,7 @@ namespace ODTablet
 
         private void DisplayStartMenu()
         {
+            CurrentAppMode = MapBoardMode.None;
             LayoutRoot.Children.Clear();
             LayoutRoot.Children.Add(AppModeMenu);
             DetailWindow.Title = "Detail";
@@ -393,7 +395,7 @@ namespace ODTablet
 
         private void TurnOffLens_Click(object sender, RoutedEventArgs e)
         {
-            //SendRemoveLensModeMessage(); // TODO
+            SendRemoveLensModeMessage(); // TODO
             Board.RemoveLens(CurrentLens);
             //RemoveViewFinderFromScreen(LensType.None);
             ClearMapCanvas();
@@ -451,22 +453,18 @@ namespace ODTablet
         # region BroadcastCurrentExtent(), SendRemoveLensModeMessage(), SendMsgToGetActiveModesFromTable()
         private void BroadcastCurrentExtent()
         {
-            // TODO
-            throw new NotImplementedException();
-            //Dictionary<string, string> dict = new Dictionary<string, string>();
-            //dict.Add("UpdateMode", CurrentMode);
-            //dict.Add("extent", ActiveLens[CurrentMode].extent.ToString());
-
-            //SoD.SendDictionaryToDevices(dict, "all");
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("UpdateMode", CurrentLens.ToString());
+            dict.Add("Extent", this.LensMap.Extent.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
         }
 
         private void SendRemoveLensModeMessage()
         {
             // TODO
-            //Dictionary<string, string> dict = new Dictionary<string, string>();
-            //dict.Add("RemoveMode", CurrentMode);
-            //SoD.SendDictionaryToDevices(dict, "all");
-            throw new NotImplementedException();
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("RemoveMode", CurrentLens.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
         }
 
         private void SendMsgToGetActiveModesFromTable()
@@ -548,7 +546,7 @@ namespace ODTablet
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
-            String extentString = (String)parsedMessage["data"]["data"]["extent"];
+            String extentString = (String)parsedMessage["data"]["data"]["Extent"];
             String updateMode = (String)parsedMessage["data"]["data"]["UpdateMode"];
             String removeMode = (String)parsedMessage["data"]["data"]["RemoveMode"];
             String tableConfiguration = (String)parsedMessage["data"]["data"]["TableActiveModes"];
@@ -563,16 +561,22 @@ namespace ODTablet
 
             if (updateMode != null && !updateMode.Equals(CurrentLens.ToString()))
             {
-                LensType lens = MapBoard.StringToLensType(updateMode);
-                Board.UpdateLens(lens, extentString);
-                UpdateAllLensAccordingCurrentModeExtent(); // TODO: SHOULD BE FROM EVENT!
+                this.Dispatcher.Invoke((Action)(() =>
+                {
+                    LensType lens = MapBoard.StringToLensType(updateMode);
+                    Board.UpdateLens(lens, extentString);
+                    //UpdateAllLensAccordingCurrentModeExtent(); // TODO: SHOULD BE FROM EVENT!
+                }));
             }
 
             if (removeMode != null && !removeMode.Equals(CurrentLens.ToString()))
             {
-                LensType lens = MapBoard.StringToLensType(removeMode);
-                RemoveViewFinderFromScreen(lens); // TODO: SHOULD BE FROM EVENT!
-                Board.RemoveLens(lens);
+                this.Dispatcher.Invoke((Action)(() =>
+                {
+                    LensType lens = MapBoard.StringToLensType(removeMode);
+                    RemoveViewFinderFromScreen(lens); // TODO: SHOULD BE FROM EVENT!
+                    Board.RemoveLens(lens);
+                }));
             }
         }
 

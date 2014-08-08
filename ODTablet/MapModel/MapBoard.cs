@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace ODTablet.MapModel
 {
 
-    public enum MapBoardMode { Overview, SingleLens, MultipleLenses};
+    public enum MapBoardMode {None, Overview, SingleLens, MultipleLenses };
     public enum LensType { None, All, Satellite, Streets, Population, ElectoralDistricts, Cities, Basemap };
 
     public delegate void ChangedEventHandler(object sender, EventArgs e);
@@ -61,11 +61,11 @@ namespace ODTablet.MapModel
                     _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
                 }
                 lensStack.Add(lens);
-                isDirty = true;
+                OnLensCollectionChanged(EventArgs.Empty);
             }
             else
             {
-                if (_lensCollection[lens].Extent.ToString().Equals(extent.ToString())) // TODO: Change this for something better!
+                if (!_lensCollection[lens].Extent.ToString().Equals(extent.ToString())) // TODO: Change this for something better!
                 {
                     _lensCollection[lens].Extent = extent;
                     isDirty = true;
@@ -130,7 +130,7 @@ namespace ODTablet.MapModel
         {
             if(isDirty)
             {
-                OnLensCollectionChanged(EventArgs.Empty);
+                OnViewFindersChanged(EventArgs.Empty);
                 isDirty = false;
             }
         }

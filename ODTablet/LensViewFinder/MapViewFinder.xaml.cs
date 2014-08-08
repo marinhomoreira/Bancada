@@ -119,7 +119,7 @@ namespace ODTablet.LensViewFinder
                 SpatialReference = this.VFMap.SpatialReference
             };
 
-            if(this.Map.Extent.Intersects(lensExtent))
+            if(this.Map.Extent != null && this.Map.Extent.Intersects(lensExtent))
             {
                 Envelope MapLensIntersectionExtent = lensExtent.Intersection(this.Map.Extent);
                 try

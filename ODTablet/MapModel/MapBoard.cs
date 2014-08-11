@@ -48,6 +48,8 @@ namespace ODTablet.MapModel
             UpdateLens(lens, e);
         }
 
+
+        // What really matters starts here
         public void UpdateLens(LensType lens, Envelope extent)
         {
             if (!LensIsActive(lens) && LensCanBeActivated(lens))
@@ -55,6 +57,7 @@ namespace ODTablet.MapModel
                 if(extent != null) // TODO: ExtentIsValid()?
                 {
                     _lensCollection.Add(lens, new LensFactory().CreateLens(lens, extent));
+
                 }
                 else
                 {
@@ -71,7 +74,7 @@ namespace ODTablet.MapModel
                     isDirty = true;
                 }
             }
-            UpdateZIndex(lens, -1);
+            UpdateZIndex(lens, null);
             SendEventIfDirty();
         }
 
@@ -80,7 +83,7 @@ namespace ODTablet.MapModel
             UpdateLens(lens, extent);
             if(LensIsActive(lens))
             {
-                UpdateZIndex(lens, -1);
+                UpdateZIndex(lens, ZIndex);
             }
             SendEventIfDirty();
         }
@@ -93,57 +96,84 @@ namespace ODTablet.MapModel
             {
                 if (LensCanBeActivated(entry.Key))
                 {
-                    UpdateLens(entry.Key, entry.Value);
+                    string[] extentPointsPlusZUIIndex = entry.Value.Split(';');
+                    UpdateLens(entry.Key, extentPointsPlusZUIIndex[0]);
+                    UpdateZIndex(entry.Key, extentPointsPlusZUIIndex[1]);
                 }
             }
         }
 
-        private List<LensType> lensStack = new List<LensType>();
+        # endregion
 
+
+
+
+        # region ZUIIndex
+
+        private List<LensType> lensStack = new List<LensType>();
         public void UpdateZIndex(LensType lens, int? zIndex)
         {
-            if (lens == LensType.Basemap && _lensCollection[LensType.Basemap].UIIndex != 0)
+            if (lens == LensType.Basemap && !lensStack.Contains(lens) && lensStack.IndexOf(lens) != 0)
             {
-                _lensCollection[lens].UIIndex = 0;
-                return;
-            }
-            if (zIndex != null && (int)zIndex == -1)
-            {
-                _lensCollection[lens].UIIndex = lensStack.IndexOf(lens)+1;
+                lensStack.Insert(0, lens);
+                isDirty = true;
                 return;
             }
 
-            if (zIndex == null) // TODO: One condition is missing. What is it? u_u'
+            if (zIndex == null)
             {
-                _lensCollection[lens].UIIndex = zIndexCounter++; // TODO: I think zIndexCounter doesn't work as expected
-                return;
+                if (!lensStack.Contains(lens))
+                {
+                    lensStack.Add(lens);
+                    isDirty = true;
+                }
+            }
+            else
+            {
+                if (!lensStack.Contains(lens))
+                {
+                    lensStack.Insert((int)zIndex, lens);
+                    isDirty = true;
+                }
+                else
+                {
+                    if (lensStack.IndexOf(lens) != (int)zIndex)
+                    {
+                        lensStack.Remove(lens);
+                        lensStack.Insert((int)zIndex, lens);
+                        isDirty = true;
+                    }
+                }
+            }
+        }
+
+        public void UpdateZIndex(string lensName, string zIndex)
+        {
+            int index = 1;
+            LensType lens = LensType.None;
+            try {
+                index = Convert.ToInt32(zIndex);
+                lens = StringToLensType(lensName);
+            }
+            catch(Exception e){
+                Console.WriteLine("Problem in UpdateZIndex(string, string) : " + e.Message);
             }
 
-            if (_lensCollection[lens].UIIndex != (int)zIndex)
-            {
-                _lensCollection[lens].UIIndex = (int)zIndex;
-            }
+            UpdateZIndex(lens, index);
+        }
+
+        public int ZUIIndexOf(LensType lens)
+        {
+            return lensStack.IndexOf(lens);
+            //return _lensCollection[lens].UIIndex;
         }
         # endregion
+
+
+
         
-        public void SendEventIfDirty()
-        {
-            if(isDirty)
-            {
-                OnViewFindersChanged(EventArgs.Empty);
-                isDirty = false;
-            }
-        }
-        
-        public Dictionary<string, string> ActiveLensesToDictionary()
-        {
-            Dictionary<string, string> lensesDic = new Dictionary<string,string>();
-            foreach(KeyValuePair<LensType, Lens> lens in _lensCollection)
-            {
-                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString());
-            }
-            return lensesDic;
-        }
+
+
 
         public Lens GetLens(LensType lens)
         {
@@ -175,15 +205,31 @@ namespace ODTablet.MapModel
             return new LensFactory().CreateLens(lens).MapLayerCollection;
         }
 
+        public Dictionary<string, string> ActiveLensesToDictionary()
+        {
+            Dictionary<string, string> lensesDic = new Dictionary<string, string>();
+            foreach (KeyValuePair<LensType, Lens> lens in _lensCollection)
+            {
+                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString() +";"+lens.Value.UIIndex);
+            }
+            return lensesDic;
+        }
+
+
+
+
+
         public bool RemoveLens(LensType lens)
         {
             if (LensIsActive(lens))
             {
                 _lensCollection.Remove(lens);
+                lensStack.Remove(lens);
                 OnLensCollectionChanged(EventArgs.Empty);
                 return true;
             } else if(lens == LensType.All)
             {
+                lensStack.Clear();
                 _lensCollection.Clear();
                 OnLensCollectionChanged(EventArgs.Empty);
                 return true;
@@ -203,6 +249,9 @@ namespace ODTablet.MapModel
                 return false;
             }
         }
+
+
+
 
 
         private bool LensIsActive(LensType lens)
@@ -228,6 +277,46 @@ namespace ODTablet.MapModel
             }
         }
 
+
+
+
+        internal static Envelope InitialExtentFrom(LensType lens)
+        {
+            return new LensFactory().CreateLens(lens).Extent;
+        }
+        
+        private Envelope StringToEnvelope(String extent)
+        {
+            double[] extentPoints = Array.ConvertAll(extent.Split(','), Double.Parse);
+            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
+            myEnvelope.XMin = extentPoints[0];
+            myEnvelope.YMin = extentPoints[1];
+            myEnvelope.XMax = extentPoints[2];
+            myEnvelope.YMax = extentPoints[3];
+            //myEnvelope.SpatialReference = this.BasemapMap.SpatialReference; //TODO: how to define this?
+            return myEnvelope;
+        }
+       
+        public static LensType StringToLensType(string lens)
+        {
+            return (LensType)Enum.Parse(typeof(LensType), lens, true);
+        }
+
+        public static MapBoardMode StringToMapBoardMode(string mapboardMode)
+        {
+            return (MapBoardMode)Enum.Parse(typeof(MapBoardMode), mapboardMode, true);
+        }
+
+
+        public void SendEventIfDirty()
+        {
+            if (isDirty)
+            {
+                OnViewFindersChanged(EventArgs.Empty);
+                isDirty = false;
+            }
+        }
+
         protected virtual void OnLensCollectionChanged(EventArgs e)
         {
             if (LensCollectionChanged != null)
@@ -244,32 +333,6 @@ namespace ODTablet.MapModel
             }
         }
 
-        private Envelope StringToEnvelope(String extent)
-        {
-            double[] extentPoints = Array.ConvertAll(extent.Split(','), Double.Parse);
-            ESRI.ArcGIS.Client.Geometry.Envelope myEnvelope = new ESRI.ArcGIS.Client.Geometry.Envelope();
-            myEnvelope.XMin = extentPoints[0];
-            myEnvelope.YMin = extentPoints[1];
-            myEnvelope.XMax = extentPoints[2];
-            myEnvelope.YMax = extentPoints[3];
-            //myEnvelope.SpatialReference = this.BasemapMap.SpatialReference; //TODO: how to define this?
-            return myEnvelope;
-        }
         
-        public static LensType StringToLensType(string lens)
-        {
-            return (LensType)Enum.Parse(typeof(LensType), lens, true);
-        }
-
-        public static MapBoardMode StringToMapBoardMode(string mapboardMode)
-        {
-            return (MapBoardMode)Enum.Parse(typeof(MapBoardMode), mapboardMode, true);
-        }
-
-
-        internal static Envelope InitialExtentFrom(LensType lens)
-        {
-            return new LensFactory().CreateLens(lens).Extent;
-        }
     }
 }

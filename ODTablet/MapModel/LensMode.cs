@@ -17,7 +17,7 @@ namespace ODTablet.MapModel
         public int UIIndex { get; set; }
 
         public Layer MapLayer 
-        { 
+        {
             get; set;
         }
 

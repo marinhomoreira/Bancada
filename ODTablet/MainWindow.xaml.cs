@@ -103,12 +103,12 @@ namespace ODTablet
                 Lens CurrentLensMode = Board.GetLens(CurrentLens);
                 LensMap.Layers.Add(CurrentLensMode.MapLayer);
                 LensMap.Extent = CurrentLensMode.Extent;
-                Grid.SetZIndex(LensMap, CurrentLensMode.UIIndex);
+                Grid.SetZIndex(LensMap, Board.ZUIIndexOf(CurrentLens));
 
                 Lens basem = Board.GetLens(LensType.Basemap);
                 BasemapMap.Layers.Add(MapBoard.GenerateMapLayerCollection(CurrentLens)[0]);
                 BasemapMap.Extent = CurrentLensMode.Extent;
-                Grid.SetZIndex(BasemapMap, 0);
+                Grid.SetZIndex(BasemapMap, Board.ZUIIndexOf(LensType.Basemap));
 
                 LayoutRoot.Children.Add(BasemapMap);
                 LayoutRoot.Children.Add(LensMap);
@@ -120,12 +120,12 @@ namespace ODTablet
                 Lens CurrentLensMode = Board.GetLens(CurrentLens);
                 LensMap.Layers.Add(CurrentLensMode.MapLayer);
                 LensMap.Extent = CurrentLensMode.Extent;
-                Grid.SetZIndex(LensMap, CurrentLensMode.UIIndex);
+                Grid.SetZIndex(LensMap, Board.ZUIIndexOf(CurrentLens));
 
                 Lens basem = Board.GetLens(LensType.Basemap);
                 BasemapMap.Layers.Add(basem.MapLayer);
                 BasemapMap.Extent = CurrentLensMode.Extent;
-                Grid.SetZIndex(BasemapMap, 0);
+                Grid.SetZIndex(BasemapMap, Board.ZUIIndexOf(LensType.Basemap));
 
                 LayoutRoot.Children.Add(BasemapMap);
                 LayoutRoot.Children.Add(LensMap);
@@ -190,9 +190,9 @@ namespace ODTablet
                     {
                         // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
                         ((MapViewFinder)LayoutRoot.Children[i]).UpdateExtent(Board.ViewFindersOf(CurrentLens)[type].Extent.ToString());
-                        if (Grid.GetZIndex(LayoutRoot.Children[i]) != Board.ViewFindersOf(CurrentLens)[type].UIIndex)
+                        if (Grid.GetZIndex(LayoutRoot.Children[i]) != Board.ZUIIndexOf(type))
                         {
-                            Grid.SetZIndex(LayoutRoot.Children[i], Board.ViewFindersOf(CurrentLens)[type].UIIndex);
+                            Grid.SetZIndex(LayoutRoot.Children[i], Board.ZUIIndexOf(type));
                         }
                     }
 
@@ -200,7 +200,6 @@ namespace ODTablet
                     {
                         LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
                     }
-                    
                 }
             }
         }
@@ -214,7 +213,7 @@ namespace ODTablet
                 Name = viewfinderType.ToString(),
                 Layers = MapBoard.GenerateMapLayerCollection(viewfinderType),
             };
-            Grid.SetZIndex(mvf, viewfinder.UIIndex);
+            Grid.SetZIndex(mvf, Board.ZUIIndexOf(viewfinderType));
             LayoutRoot.Children.Add(mvf);
             mvf.UpdateExtent(viewfinder.Extent.ToString());
             mvf.Loaded += mvf_Loaded;
@@ -239,12 +238,23 @@ namespace ODTablet
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
-            BasemapMap.Extent = e.NewExtent;
-            Board.ActiveLenses[CurrentLens].Extent = e.NewExtent;
-            UpdateAllLensAccordingCurrentModeExtent();
-            if (CurrentAppMode != MapBoardMode.Overview)
+            try
             {
-                BroadcastCurrentExtent();
+                BasemapMap.Extent = e.NewExtent;
+                Board.ActiveLenses[CurrentLens].Extent = e.NewExtent;
+                UpdateAllLensAccordingCurrentModeExtent();
+                if (CurrentAppMode != MapBoardMode.Overview)
+                {
+                    BroadcastCurrentExtent();
+                }
+            }
+            catch (Exception exc)
+            {
+                Console.WriteLine(exc.Message);
+                LensType cl = CurrentLens;
+                ClearMapCanvas();
+                CurrentLens = cl;
+                InitializeModeUI();
             }
         }
 
@@ -293,7 +303,6 @@ namespace ODTablet
                 IsHitTestVisible = true
             };
             LensMap.ExtentChanging += LensMap_ExtentChanging;
-
         }
 
         private void InitializeMenus()
@@ -393,6 +402,7 @@ namespace ODTablet
 
         private void DisplayStartMenu()
         {
+            DetailWindow.Title = "ODODODODODOD";
             ClearMapCanvas();
             CurrentAppMode = MapBoardMode.None;
             LayoutRoot.Children.Clear();

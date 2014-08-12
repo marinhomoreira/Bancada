@@ -247,7 +247,7 @@ namespace ODTablet
             try
             {
                 BasemapMap.Extent = e.NewExtent;
-                Board.ActiveLenses[CurrentLens].Extent = e.NewExtent;
+                Board.GetLens(CurrentLens).Extent = e.NewExtent;
                 UpdateAllLensAccordingCurrentModeExtent();
                 if (CurrentAppMode != MapBoardMode.Overview)
                 {
@@ -257,11 +257,11 @@ namespace ODTablet
             catch (Exception exc)
             {
                 Console.WriteLine(exc.Message);
-                LensType cl = CurrentLens;
-                ClearMapCanvas();
-                CurrentLens = cl;
-                InitializeMaps();
-                InitializeModeUI();
+                //LensType cl = CurrentLens;
+                //ClearMapCanvas();
+                //CurrentLens = cl;
+                //InitializeMaps();
+                //InitializeModeUI();
             }
         }
 
@@ -720,6 +720,7 @@ namespace ODTablet
                         return;
                     }
                     Board.RemoveLens(lens);
+                    RefreshUI();
                 }));
             }
         }

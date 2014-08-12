@@ -99,17 +99,18 @@ namespace ODTablet
             LayoutRoot.Children.Clear();
             if (CurrentAppMode == MapBoardMode.Overview)
             {
+                Lens basem = Board.GetLens(LensType.Basemap);
+                BasemapMap.Layers.Add(MapBoard.GenerateMapLayerCollection(CurrentLens)[0]);
+                Grid.SetZIndex(BasemapMap, Board.ZUIIndexOf(LensType.Basemap));
+
                 // TODO : CUT CUT CUT REUSE REUSE REUSE YEAH BABE!
                 Lens CurrentLensMode = Board.GetLens(CurrentLens);
                 LensMap.Layers.Add(CurrentLensMode.MapLayer);
                 LensMap.Extent = CurrentLensMode.Extent;
                 Grid.SetZIndex(LensMap, Board.ZUIIndexOf(CurrentLens));
 
-                Lens basem = Board.GetLens(LensType.Basemap);
-                BasemapMap.Layers.Add(MapBoard.GenerateMapLayerCollection(CurrentLens)[0]);
                 BasemapMap.Extent = CurrentLensMode.Extent;
-                Grid.SetZIndex(BasemapMap, Board.ZUIIndexOf(LensType.Basemap));
-
+                
                 LayoutRoot.Children.Add(BasemapMap);
                 LayoutRoot.Children.Add(LensMap);
                 LayoutRoot.Children.Add(OverviewMenu);
@@ -117,18 +118,26 @@ namespace ODTablet
             }
             else
             {
+                Lens basem = Board.GetLens(LensType.Basemap);
+                BasemapMap.Layers.Add(basem.MapLayer);
+                Grid.SetZIndex(BasemapMap, Board.ZUIIndexOf(LensType.Basemap));
+
                 Lens CurrentLensMode = Board.GetLens(CurrentLens);
                 LensMap.Layers.Add(CurrentLensMode.MapLayer);
                 LensMap.Extent = CurrentLensMode.Extent;
                 Grid.SetZIndex(LensMap, Board.ZUIIndexOf(CurrentLens));
 
-                Lens basem = Board.GetLens(LensType.Basemap);
-                BasemapMap.Layers.Add(basem.MapLayer);
                 BasemapMap.Extent = CurrentLensMode.Extent;
-                Grid.SetZIndex(BasemapMap, Board.ZUIIndexOf(LensType.Basemap));
-
+                
                 LayoutRoot.Children.Add(BasemapMap);
                 LayoutRoot.Children.Add(LensMap);
+                
+                if (!BackOffMenu.Children.Contains(DeactivateLensButton) || BackOffMenu.Children.Contains(ActivateLensButton))
+                {
+                    BackOffMenu.Children.Remove(ActivateLensButton);
+                    BackOffMenu.Children.Add(DeactivateLensButton);
+                }
+                
                 LayoutRoot.Children.Add(BackOffMenu);
             }
 
@@ -147,7 +156,7 @@ namespace ODTablet
                 Canvas.SetZIndex(legend, 99);
                 LayoutRoot.Children.Add(legend);
             }
-
+            this.LensMap.IsHitTestVisible = true;
             InitializeViewFinders();
             BroadcastCurrentExtent();
             //RefreshViewFinders();
@@ -353,8 +362,9 @@ namespace ODTablet
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Cities.ToString(), ModeButton_Click));
 
 
-            BackOffMenu.Children.Add(CreateStackPanelButton("Change lens", BackButton_Click));
-            BackOffMenu.Children.Add(CreateStackPanelButton("Turn off this lens", TurnOffLens_Click));
+            ChangeLensButton = CreateStackPanelButton("Change lens", BackButton_Click);
+            DeactivateLensButton = CreateStackPanelButton("Deactivate", TurnOffLens_Click);
+            ActivateLensButton = CreateStackPanelButton("Activate", TurnOnLens_Click);
 
             OverviewMenu.Children.Add(CreateStackPanelButton("Remove all lenses", RemoveAllLens_Click));
             OverviewMenu.Children.Add(CreateStackPanelButton("Reset Map", InitialState_Click));
@@ -363,6 +373,9 @@ namespace ODTablet
             Canvas.SetZIndex(BackOffMenu, 99);
             Canvas.SetZIndex(OverviewMenu, 99);
         }
+
+        Button ChangeLensButton, ActivateLensButton, DeactivateLensButton;
+
 
         private void InitialState_Click(object sender, RoutedEventArgs e)
         {
@@ -379,12 +392,16 @@ namespace ODTablet
 
         private void InitializeSingleLensMode()
         {
+            BackOffMenu.Children.Clear();
+            BackOffMenu.Children.Add(DeactivateLensButton);
             CurrentAppMode = MapBoardMode.SingleLens;
             DisplayLensSelectionMenu();
         }
 
         private void InitializeMultipleLensesMode()
         {
+            BackOffMenu.Children.Clear();
+            BackOffMenu.Children.Add(ChangeLensButton);
             CurrentAppMode = MapBoardMode.MultipleLenses;
             DisplayLensSelectionMenu();
         }
@@ -413,7 +430,7 @@ namespace ODTablet
         {
             LayoutRoot.Children.Clear();
             LayoutRoot.Children.Add(LensSelectionMenu);
-            DetailWindow.Title = "Detail";
+            DetailWindow.Title = "Multiple lenses";
         }
 
         private void ClearMapCanvas()
@@ -467,10 +484,55 @@ namespace ODTablet
 
         private void TurnOffLens_Click(object sender, RoutedEventArgs e)
         {
+            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            DeactivateLens();
+        }
+
+        private void TurnOnLens_Click(object sender, RoutedEventArgs e)
+        {
+            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            ActivateLens();
+        }
+
+        public void ActivateLens()
+        {
+            // Make UI available
+            this.LensMap.IsHitTestVisible = true;
+            
+            if (!BackOffMenu.Children.Contains(DeactivateLensButton) || BackOffMenu.Children.Contains(ActivateLensButton))
+            {
+                BackOffMenu.Children.Remove(ActivateLensButton);
+                BackOffMenu.Children.Add(DeactivateLensButton);
+            }
+            
+            CanBroadcast = true;
+            
+            BroadcastCurrentExtent();
+
+            RefreshUI();
+        }
+
+
+        public void DeactivateLens()
+        {
             SendRemoveLensModeMessage();
+
+            //Make UI unavailable
+            this.LensMap.IsHitTestVisible = false;
+            
             Board.RemoveLens(CurrentLens);
-            ClearMapCanvas();
-            DisplayLensSelectionMenu();
+            
+            //Change button
+            if (!BackOffMenu.Children.Contains(ActivateLensButton) || BackOffMenu.Children.Contains(DeactivateLensButton))
+            {
+                BackOffMenu.Children.Remove(DeactivateLensButton);
+                BackOffMenu.Children.Add(ActivateLensButton);
+            }
+            CanBroadcast = false;
+            // old
+            //Board.RemoveLens(CurrentLens);
+            //ClearMapCanvas();
+            //DisplayLensSelectionMenu();
         }
 
         private void BackButton_Click(object sender, RoutedEventArgs e)
@@ -516,15 +578,25 @@ namespace ODTablet
 
 
 
-
+        bool CanBroadcast = true;
 
         # region BroadcastCurrentExtent(), SendRemoveLensModeMessage(), SendMsgToGetActiveModesFromTable()
         private void BroadcastCurrentExtent()
         {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
-            dict.Add("UpdateMode", CurrentLens.ToString());
-            dict.Add("Extent", this.LensMap.Extent.ToString());
-            SoD.SendDictionaryToDevices(dict, "all");
+            if(CanBroadcast)
+            {
+                try
+                {
+                    Dictionary<string, string> dict = new Dictionary<string, string>();
+                    dict.Add("UpdateMode", CurrentLens.ToString());
+                    dict.Add("Extent", this.LensMap.Extent.ToString());
+                    SoD.SendDictionaryToDevices(dict, "all");
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Problem when broadcasting: "+e.Message);
+                }
+            }
         }
 
         private void SendRemoveLensModeMessage()
@@ -672,14 +744,43 @@ namespace ODTablet
 
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
         {
-            if (e.Key == Key.F2)
+            
+            switch (e.Key)
             {
-                DisplayStartMenu();
+                case Key.F2:
+                case Key.M:
+                    DisplayStartMenu();
+                    break;
+                case Key.F5:
+                case Key.R:
+                    RefreshUI();
+                    break;
+                case Key.A:
+                    if(CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
+                    {
+                        ActivateLens();
+                    }
+                    break;
+                case Key.D:
+                    if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
+                    {
+                        DeactivateLens();
+                    }
+                    break;
+                case Key.C:
+                    if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
+                    {
+                        InitializeMultipleLensesMode();
+                    }
+                    break;
+                case Key.Escape:
+                    Application.Current.Shutdown();
+                    break;
+                default:
+                    break;
             }
-            if (e.Key == Key.F5)
-            {
-                RefreshUI();
-            }
+
+
         }
 
     }

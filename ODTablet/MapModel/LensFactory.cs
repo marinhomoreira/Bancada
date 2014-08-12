@@ -24,6 +24,7 @@ namespace ODTablet.MapModel
             , WorldSatelliteImagery = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer" // Images from satellites
             , WorldBoundariesAndPlacesLabels = "http://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer" // Just labels
             , CanadaElectoralDistricts = "http://136.159.14.25:6080/arcgis/rest/services/Politik/Boundaries/MapServer"
+            //, CanadaElectoralDistricts = "http://services1.arcgis.com/wQRV9oZpU2WABrts/arcgis/rest/services/Canada_CSD/FeatureServer"
             , CanadaPopulationDensity = "http://maps.esri.ca/arcgis/rest/services/StatsServices/PopulationDensity/MapServer/"
             ;
 
@@ -82,6 +83,7 @@ namespace ODTablet.MapModel
         ArcGISTiledMapServiceLayer StreetMapLayer;
         ArcGISDynamicMapServiceLayer PopulationLayer;
         ArcGISDynamicMapServiceLayer ElectoralDistrictsLayer;
+        //FeatureLayer ElectoralDistrictsLayer;
         ArcGISDynamicMapServiceLayer CitiesLayer;
 
 
@@ -104,8 +106,8 @@ namespace ODTablet.MapModel
                         
             PopulationLayer = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[LensType.Population] };
             PopulationLayer.DisableClientCaching = false;
-            
-            ElectoralDistrictsLayer = new ArcGISDynamicMapServiceLayer { Url = UrlDic[LensType.ElectoralDistricts] };
+
+            ElectoralDistrictsLayer = new ArcGISDynamicMapServiceLayer { Url = UrlDic[LensType.ElectoralDistricts] }; //new FeatureLayer() { Url = UrlDic[LensType.ElectoralDistricts] };
             ElectoralDistrictsLayer.DisableClientCaching = false;
             
             CitiesLayer = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[LensType.Cities] };

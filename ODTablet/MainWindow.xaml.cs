@@ -141,8 +141,6 @@ namespace ODTablet
                 LayoutRoot.Children.Add(BackOffMenu);
             }
 
-            
-
             if (CurrentLens.Equals(LensType.Population))
             {
                 // TODO: Y U NO WORK?!
@@ -158,6 +156,7 @@ namespace ODTablet
             }
             this.LensMap.IsHitTestVisible = true;
             InitializeViewFinders();
+            CanBroadcast = true;
             BroadcastCurrentExtent();
             //RefreshViewFinders();
         }
@@ -262,6 +261,7 @@ namespace ODTablet
                 LensType cl = CurrentLens;
                 ClearMapCanvas();
                 CurrentLens = cl;
+                InitializeMaps();
                 InitializeModeUI();
             }
         }
@@ -504,11 +504,8 @@ namespace ODTablet
                 BackOffMenu.Children.Remove(ActivateLensButton);
                 BackOffMenu.Children.Add(DeactivateLensButton);
             }
-            
             CanBroadcast = true;
-            
             BroadcastCurrentExtent();
-
             RefreshUI();
         }
 

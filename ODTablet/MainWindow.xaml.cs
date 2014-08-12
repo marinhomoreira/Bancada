@@ -372,6 +372,7 @@ namespace ODTablet
 
         private void RemoveAllLens_Click(object sender, RoutedEventArgs e)
         {
+            Board.RemoveLens(LensType.All);
             RemoveAllViewFinders();
         }
 

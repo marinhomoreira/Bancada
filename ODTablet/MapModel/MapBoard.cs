@@ -31,10 +31,9 @@ namespace ODTablet.MapModel
             _lensCollection = new Dictionary<LensType, Lens>();
         }
         
-        int zIndexCounter = 1;
         bool isDirty = false;
 
-        # region UpdateLens
+        # region ClearBoardAndDisplayLensesAccordingToOverview
         public void UpdateLens(String lensName, String extent)
         {
             LensType lens = StringToLensType(lensName);
@@ -74,33 +73,41 @@ namespace ODTablet.MapModel
                     isDirty = true;
                 }
             }
-            UpdateZIndex(lens, null);
-            SendEventIfDirty();
+            UpdateZIndex(lens, (string)null);
+            SendViewFindersChangedEventIfDirty();
         }
 
-        public void UpdateLens(LensType lens, Envelope extent, int? ZIndex)
+        public void UpdateLens(LensType lens, Envelope extent, string ZIndex)
         {
             UpdateLens(lens, extent);
             if(LensIsActive(lens))
             {
                 UpdateZIndex(lens, ZIndex);
             }
-            SendEventIfDirty();
         }
 
-        public void UpdateLens(Dictionary<string, string> remoteDictionary)
+        
+
+        public void ClearBoardAndDisplayLensesAccordingToOverview(Dictionary<string, string> remoteDictionary)
         {
-            // TODO: diff and so on....
-            // If RemoteTableConfiguration is empty
-            foreach (KeyValuePair<string, string> entry in remoteDictionary)
+            if (remoteDictionary.Count > 1)
             {
-                if (LensCanBeActivated(entry.Key))
+                _lensCollection = new Dictionary<LensType, Lens>();
+                foreach (KeyValuePair<string, string> entry in remoteDictionary)
                 {
-                    string[] extentPointsPlusZUIIndex = entry.Value.Split(';');
-                    UpdateLens(entry.Key, extentPointsPlusZUIIndex[0]);
-                    UpdateZIndex(entry.Key, extentPointsPlusZUIIndex[1]);
+                    if (LensCanBeActivated(entry.Key))
+                    {
+                        string[] extentPointsPlusZUIIndex = entry.Value.Split(';');
+                        UpdateLens(entry.Key, extentPointsPlusZUIIndex[0]);
+                        UpdateZIndex(entry.Key, extentPointsPlusZUIIndex[1]);
+                    }
                 }
             }
+            else
+            {
+                Console.WriteLine("Empty dictionary");
+            }
+            
         }
 
         # endregion
@@ -113,8 +120,10 @@ namespace ODTablet.MapModel
         private List<LensType> lensStack = new List<LensType>();
         public void UpdateZIndex(LensType lens, int? zIndex)
         {
-            if (lens == LensType.Basemap && !lensStack.Contains(lens) && lensStack.IndexOf(lens) != 0)
+            // Basemap is always 0;
+            if (lens == LensType.Basemap && !lensStack.Contains(LensType.Basemap) && lensStack.IndexOf(LensType.Basemap) != 0)
             {
+                lensStack.Remove(lens);
                 lensStack.Insert(0, lens);
                 isDirty = true;
                 return;
@@ -124,6 +133,7 @@ namespace ODTablet.MapModel
             {
                 if (!lensStack.Contains(lens))
                 {
+                    // No lens present and zIndex is null, just add to the stack.
                     lensStack.Add(lens);
                     isDirty = true;
                 }
@@ -132,11 +142,13 @@ namespace ODTablet.MapModel
             {
                 if (!lensStack.Contains(lens))
                 {
+                    // zIndex is valid but the stack doesn't contain the given lens
                     lensStack.Insert((int)zIndex, lens);
                     isDirty = true;
                 }
                 else
                 {
+                    // zIndex is valid but the stack contains the given lens in a different position
                     if (lensStack.IndexOf(lens) != (int)zIndex)
                     {
                         lensStack.Remove(lens);
@@ -145,21 +157,41 @@ namespace ODTablet.MapModel
                     }
                 }
             }
+            SendViewFindersChangedEventIfDirty();
         }
 
         public void UpdateZIndex(string lensName, string zIndex)
         {
-            int index = 1;
-            LensType lens = LensType.None;
+            LensType lens = StringToLensType(lensName);
+            if (zIndex.Equals("") ||zIndex == null )
+            {
+                UpdateZIndex(lens, (int?)null);
+                return;
+            }
             try {
-                index = Convert.ToInt32(zIndex);
-                lens = StringToLensType(lensName);
+                int index = Convert.ToInt32(zIndex);
+                UpdateZIndex(lens, index);
             }
             catch(Exception e){
                 Console.WriteLine("Problem in UpdateZIndex(string, string) : " + e.Message);
             }
+        }
 
-            UpdateZIndex(lens, index);
+        private void UpdateZIndex(LensType lens, string zIndex)
+        {
+            if (zIndex == null || zIndex.Equals(""))
+            {
+                UpdateZIndex(lens, (int?)null);
+                return;
+            }
+            try
+            {
+                UpdateZIndex(lens, Convert.ToInt32(zIndex));
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Problem in UpdateZIndex(LensType, string) : " + e.Message);
+            }
         }
 
         public int ZUIIndexOf(LensType lens)
@@ -210,7 +242,7 @@ namespace ODTablet.MapModel
             Dictionary<string, string> lensesDic = new Dictionary<string, string>();
             foreach (KeyValuePair<LensType, Lens> lens in _lensCollection)
             {
-                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString() +";"+lens.Value.UIIndex);
+                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString() +";"+ lensStack.IndexOf(lens.Key));
             }
             return lensesDic;
         }
@@ -277,9 +309,6 @@ namespace ODTablet.MapModel
             }
         }
 
-
-
-
         internal static Envelope InitialExtentFrom(LensType lens)
         {
             return new LensFactory().CreateLens(lens).Extent;
@@ -308,7 +337,7 @@ namespace ODTablet.MapModel
         }
 
 
-        public void SendEventIfDirty()
+        public void SendViewFindersChangedEventIfDirty()
         {
             if (isDirty)
             {

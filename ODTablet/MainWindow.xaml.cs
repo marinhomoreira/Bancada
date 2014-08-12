@@ -149,9 +149,8 @@ namespace ODTablet
             }
 
             InitializeViewFinders();
-
             BroadcastCurrentExtent();
-
+            //RefreshViewFinders();
         }
 
         private void InitializeViewFinders()
@@ -345,14 +344,14 @@ namespace ODTablet
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.MultipleLenses, AppModeButton_Click));
             AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.SingleLens, AppModeButton_Click));
             AppModeMenu.Children.Add(CreateStackPanelButton("Reset all devices", SendRemoveAllLensCommand_Click));
+            AppModeMenu.Children.Add(CreateStackPanelButton("Synch", GetAllModes_Click));
 
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Population.ToString(), ModeButton_Click));
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.ElectoralDistricts.ToString(), ModeButton_Click));
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Satellite.ToString(), ModeButton_Click));
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Streets.ToString(), ModeButton_Click));
             LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Cities.ToString(), ModeButton_Click));
-            //LensSelectionMenu.Children.Add(CreateStackPanelButton("Shutdown lenses", SendRemoveAllLensCommand_Click));
-            //LensSelectionMenu.Children.Add(CreateStackPanelButton("All modes msg", GetAllModes_Click));
+
 
             BackOffMenu.Children.Add(CreateStackPanelButton("Change lens", BackButton_Click));
             BackOffMenu.Children.Add(CreateStackPanelButton("Turn off this lens", TurnOffLens_Click));
@@ -481,7 +480,7 @@ namespace ODTablet
 
         private void GetAllModes_Click(object sender, RoutedEventArgs e)
         {
-            //SendMsgToGetActiveModesFromTable(); // TODO
+            SendMsgToGetActiveModesFromTable();
         }
 
         private void SendRemoveAllLensCommand_Click(object sender, RoutedEventArgs e)
@@ -543,9 +542,7 @@ namespace ODTablet
 
         private void SendMsgToGetActiveModesFromTable()
         {
-            // TODO
-            throw new NotImplementedException();
-            //SoD.SendStringToDevices("GetAllModes", "all");
+            SoD.SendStringToDevices("GetAllModes", "all");
         }
 
 
@@ -625,11 +622,12 @@ namespace ODTablet
             String removeMode = (String)parsedMessage["data"]["data"]["RemoveMode"];
             String tableConfiguration = (String)parsedMessage["data"]["data"]["TableActiveModes"];
 
-            if (tableConfiguration != null && tableConfiguration.Equals("All"))
+            if (tableConfiguration != null && tableConfiguration.Equals("All") && CurrentAppMode == MapBoardMode.None)
             {
                 this.Dispatcher.Invoke((Action)(() =>
                 {
-                    Board.UpdateLens(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
+                    Console.WriteLine("Dictionary with table config received!");
+                    Board.ClearBoardAndDisplayLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
                 }));
             }
 
@@ -676,6 +674,10 @@ namespace ODTablet
             if (e.Key == Key.F2)
             {
                 DisplayStartMenu();
+            }
+            if (e.Key == Key.F5)
+            {
+                RefreshUI();
             }
         }
 

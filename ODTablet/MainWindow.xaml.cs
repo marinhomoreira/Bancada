@@ -82,6 +82,11 @@ namespace ODTablet
         void RefreshUI()
         {
             // TODO : map refresh? not sure... it's working right now, i guess....
+            int boardUIindex = Board.ZUIIndexOf(CurrentLens) == -1 ? 90 : Board.ZUIIndexOf(CurrentLens);
+            if (Grid.GetZIndex(this.LensMap) != boardUIindex)
+            {
+                Grid.SetZIndex(this.LensMap, boardUIindex);
+            }
             RefreshViewFinders();
         }
 
@@ -109,7 +114,7 @@ namespace ODTablet
                 Grid.SetZIndex(LensMap, Board.ZUIIndexOf(CurrentLens));
 
                 BasemapMap.Extent = CurrentLensMode.Extent;
-                
+
                 LayoutRoot.Children.Add(BasemapMap);
                 LayoutRoot.Children.Add(LensMap);
                 LayoutRoot.Children.Add(OverviewMenu);
@@ -127,16 +132,16 @@ namespace ODTablet
                 Grid.SetZIndex(LensMap, Board.ZUIIndexOf(CurrentLens));
 
                 BasemapMap.Extent = CurrentLensMode.Extent;
-                
+
                 LayoutRoot.Children.Add(BasemapMap);
                 LayoutRoot.Children.Add(LensMap);
-                
+
                 if (!BackOffMenu.Children.Contains(DeactivateLensButton) || BackOffMenu.Children.Contains(ActivateLensButton))
                 {
                     BackOffMenu.Children.Remove(ActivateLensButton);
                     BackOffMenu.Children.Add(DeactivateLensButton);
                 }
-                
+
                 LayoutRoot.Children.Add(BackOffMenu);
             }
 
@@ -176,7 +181,7 @@ namespace ODTablet
 
         private void RemoveAllViewFinders()
         {
-            for (int i = 0; i < LayoutRoot.Children.Count; i++ )
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
             {
                 if (LayoutRoot.Children[i] is MapViewFinder)
                 {
@@ -270,10 +275,10 @@ namespace ODTablet
 
 
 
-        
 
 
-        
+
+
 
 
 
@@ -497,13 +502,14 @@ namespace ODTablet
         {
             // Make UI available
             this.LensMap.IsHitTestVisible = true;
-            
+
             if (!BackOffMenu.Children.Contains(DeactivateLensButton) || BackOffMenu.Children.Contains(ActivateLensButton))
             {
                 BackOffMenu.Children.Remove(ActivateLensButton);
                 BackOffMenu.Children.Add(DeactivateLensButton);
             }
             CanBroadcast = true;
+            Board.GetLens(CurrentLens).Extent = this.LensMap.Extent;
             BroadcastCurrentExtent();
             RefreshUI();
         }
@@ -515,9 +521,9 @@ namespace ODTablet
 
             //Make UI unavailable
             this.LensMap.IsHitTestVisible = false;
-            
+
             Board.RemoveLens(CurrentLens);
-            
+
             //Change button
             if (!BackOffMenu.Children.Contains(ActivateLensButton) || BackOffMenu.Children.Contains(DeactivateLensButton))
             {
@@ -579,7 +585,7 @@ namespace ODTablet
         # region BroadcastCurrentExtent(), SendRemoveLensModeMessage(), SendMsgToGetActiveModesFromTable()
         private void BroadcastCurrentExtent()
         {
-            if(CanBroadcast)
+            if (CanBroadcast)
             {
                 try
                 {
@@ -590,7 +596,7 @@ namespace ODTablet
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("Problem when broadcasting: "+e.Message);
+                    Console.WriteLine("Problem when broadcasting: " + e.Message);
                 }
             }
         }
@@ -741,7 +747,7 @@ namespace ODTablet
 
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
         {
-            
+
             switch (e.Key)
             {
                 case Key.F2:
@@ -753,7 +759,7 @@ namespace ODTablet
                     RefreshUI();
                     break;
                 case Key.A:
-                    if(CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
+                    if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
                     {
                         ActivateLens();
                     }

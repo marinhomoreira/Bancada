@@ -15,7 +15,6 @@ using System.Windows.Shapes;
 
 // ArcGIS
 using ESRI.ArcGIS.Client;
-using ESRI.ArcGIS.Client.Toolkit.DataSources;
 using ESRI.ArcGIS.Client.Symbols;
 using ESRI.ArcGIS.Client.Geometry;
 

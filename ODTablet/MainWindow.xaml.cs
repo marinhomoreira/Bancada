@@ -57,10 +57,8 @@ namespace ODTablet
             RegisterSoDEvents();
         }
 
-
         
-
-        # region Menus' configuration
+        # region Menus' configs
 
         private void ConfigureAppModeMenu()
         {
@@ -243,7 +241,7 @@ namespace ODTablet
 
         # endregion
 
-        # region Operation with UI Elements
+        # region Clear UI Elements
         private void ClearCurrentMode()
         {
             Console.WriteLine("Resetting CurrentAppMode...");
@@ -267,7 +265,7 @@ namespace ODTablet
         # endregion
 
 
-        # region Buttons
+        # region Click. Click. Click. Click.
         private void AppModeButton_Click(object sender, RoutedEventArgs e)
         {
             CurrentAppMode = MapBoard.StringToMapBoardMode(((Button)sender).Name);
@@ -299,12 +297,37 @@ namespace ODTablet
             MoveMapToInitialExtent();
         }
 
+        private void TurnOffLens_Click(object sender, RoutedEventArgs e)
+        {
+            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            DeactivateLens();
+        }
 
+        private void TurnOnLens_Click(object sender, RoutedEventArgs e)
+        {
+            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            ActivateLens();
+        }
 
+        private void GetAllModes_Click(object sender, RoutedEventArgs e)
+        {
+            SendMsgToGetActiveModesFromTable();
+        }
 
+        private void SendRemoveAllLensCommand_Click(object sender, RoutedEventArgs e)
+        {
+            Board.RemoveLens(LensType.All);
+            SendResetAppMessage();
+        }
 
+        private void RemoveAllLens_Click(object sender, RoutedEventArgs e)
+        {
+            Board.RemoveLens(LensType.All);
+            RemoveAllViewFinders();
+        }
 
         # endregion
+
 
         # region Maps' operations
 
@@ -431,10 +454,33 @@ namespace ODTablet
             this.LensMap.Extent = this.BasemapMap.Extent;
         }
 
+        private void RefreshMaps()
+        {
+            if (!CurrentLensIsActive)
+            {
+                LensMap.Opacity = 0.5;
+            }
+            else
+            {
+                LensMap.Opacity = 1;
+            }
+
+            if (Board.ZUIIndexOf(CurrentLens) != -1)
+            {
+                if (Grid.GetZIndex(this.LensMap) != Board.ZUIIndexOf(CurrentLens))
+                {
+                    Grid.SetZIndex(this.LensMap, Board.ZUIIndexOf(CurrentLens));
+                }
+            }
+            else
+            {
+                //LayoutRoot.Children.Remove(this.LensMap); // TODO: is it really needed?
+            }
+
+            RefreshViewFinders();
+        }
+
         # endregion
-
-
-
 
         # region ViewFinders
         private void DisplayViewFindersOf(LensType lens)
@@ -496,14 +542,27 @@ namespace ODTablet
             }
         }
 
+        private void RefreshViewFinders()
+        {
+            RemoveAllViewFinders();
+            DisplayViewFinders();
+        }
+
+        private void RemoveAllViewFinders()
+        {
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
+            {
+                if (LayoutRoot.Children[i] is MapViewFinder)
+                {
+                    LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
+                }
+            }
+        }
+
         # endregion
 
 
-
-
-
-
-        # region Modes
+        # region Load, Activate, Reset Modes
         private void LoadOverviewMode()
         {
             DetailWindow.Title = "Overview";
@@ -538,7 +597,6 @@ namespace ODTablet
             RefreshMaps();
         }
 
-
         public void DeactivateLens()
         {
             SendRemoveLensModeMessage();
@@ -553,48 +611,7 @@ namespace ODTablet
         # endregion
 
 
-        
-
-
-
-        
-
-
-
-        
-
-
-        private void TurnOffLens_Click(object sender, RoutedEventArgs e)
-        {
-            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
-            DeactivateLens();
-        }
-
-        private void TurnOnLens_Click(object sender, RoutedEventArgs e)
-        {
-            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
-            ActivateLens();
-        }
-
-        private void GetAllModes_Click(object sender, RoutedEventArgs e)
-        {
-            SendMsgToGetActiveModesFromTable();
-        }
-
-        private void SendRemoveAllLensCommand_Click(object sender, RoutedEventArgs e)
-        {
-            Board.RemoveLens(LensType.All);
-            SendResetAppMessage();
-        }
-
-        private void RemoveAllLens_Click(object sender, RoutedEventArgs e)
-        {
-            Board.RemoveLens(LensType.All);
-            RemoveAllViewFinders();
-        }
-
-
-        
+        # region Events and key handlers
         void Board_ViewFindersChanged(object sender, EventArgs exception)
         {
             if (CurrentAppMode != MapBoardMode.None)
@@ -612,100 +629,36 @@ namespace ODTablet
                 RefreshMaps();
             }
         }
-        
-        void RefreshMaps()
+
+        private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
         {
-            if(!CurrentLensIsActive)
+            switch (e.Key)
             {
-                LensMap.Opacity = 0.5;
-            }
-            else
-            {
-                LensMap.Opacity = 1;
-            }
-
-            if (Board.ZUIIndexOf(CurrentLens) != -1)
-            {
-                if (Grid.GetZIndex(this.LensMap) != Board.ZUIIndexOf(CurrentLens))
-                {
-                    Grid.SetZIndex(this.LensMap, Board.ZUIIndexOf(CurrentLens));
-                }
-            }
-            else
-            {
-                //LayoutRoot.Children.Remove(this.LensMap); // TODO: is it really needed?
-            }
-
-            RefreshViewFinders();
-        }
-
-        private void RefreshViewFinders()
-        {
-            RemoveAllViewFinders();
-            DisplayViewFinders();
-        }
-
-        private void RemoveAllViewFinders()
-        {
-            for (int i = 0; i < LayoutRoot.Children.Count; i++)
-            {
-                if (LayoutRoot.Children[i] is MapViewFinder)
-                {
-                    LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
-                }
+                case Key.F2:
+                case Key.M:
+                    DisplayStartMenu();
+                    break;
+                case Key.F5:
+                case Key.R:
+                    RefreshMaps();
+                    break;
+                case Key.C:
+                    if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
+                    {
+                        DisplayLensSelectionMenu();
+                    }
+                    break;
+                case Key.Escape:
+                    Application.Current.Shutdown();
+                    break;
+                default:
+                    break;
             }
         }
 
+        #endregion
 
 
-
-
-
-        # region Broadcast messages
-        private void BroadcastCurrentExtent()
-        {
-            try
-            {
-                Dictionary<string, string> dict = new Dictionary<string, string>();
-                dict.Add("UpdateMode", CurrentLens.ToString());
-                Lens lens = Board.GetLens(CurrentLens);
-                dict.Add("Extent", lens.Extent.ToString());
-                SoD.SendDictionaryToDevices(dict, "all");
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine("Problem when broadcasting: " + exception.Message);
-            }
-
-        }
-
-        private void SendRemoveLensModeMessage()
-        {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
-            dict.Add("RemoveMode", CurrentLens.ToString());
-            SoD.SendDictionaryToDevices(dict, "all");
-        }
-
-        private void SendResetAppMessage()
-        {
-            Dictionary<string, string> dict = new Dictionary<string, string>();
-            dict.Add("RemoveMode", LensType.All.ToString());
-            SoD.SendDictionaryToDevices(dict, "all");
-        }
-
-        private void SendMsgToGetActiveModesFromTable()
-        {
-            SoD.SendStringToDevices("GetAllModes", "all");
-        }
-
-        private void BroadcastAllActiveModes()
-        {
-            Dictionary<string, string> dic = Board.ActiveLensesToDictionary();
-            dic.Add("TableActiveModes", "All");
-            SoD.SendDictionaryToDevices(dic, "all");
-        }
-
-        # endregion
 
         # region SoD
 
@@ -769,8 +722,50 @@ namespace ODTablet
         }
 
         # endregion
+        
+        # region Remote I/O
+        private void BroadcastCurrentExtent()
+        {
+            try
+            {
+                Dictionary<string, string> dict = new Dictionary<string, string>();
+                dict.Add("UpdateMode", CurrentLens.ToString());
+                Lens lens = Board.GetLens(CurrentLens);
+                dict.Add("Extent", lens.Extent.ToString());
+                SoD.SendDictionaryToDevices(dict, "all");
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine("Problem when broadcasting: " + exception.Message);
+            }
 
+        }
 
+        private void SendRemoveLensModeMessage()
+        {
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("RemoveMode", CurrentLens.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
+        }
+
+        private void SendResetAppMessage()
+        {
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("RemoveMode", LensType.All.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
+        }
+
+        private void SendMsgToGetActiveModesFromTable()
+        {
+            SoD.SendStringToDevices("GetAllModes", "all");
+        }
+
+        private void BroadcastAllActiveModes()
+        {
+            Dictionary<string, string> dic = Board.ActiveLensesToDictionary();
+            dic.Add("TableActiveModes", "All");
+            SoD.SendDictionaryToDevices(dic, "all");
+        }
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
@@ -813,34 +808,14 @@ namespace ODTablet
             }
         }
 
+        # endregion
+
         
-        private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
-        {
-            switch (e.Key)
-            {
-                case Key.F2:
-                case Key.M:
-                    DisplayStartMenu();
-                    break;
-                case Key.F5:
-                case Key.R:
-                    RefreshMaps();
-                    break;
-                case Key.C:
-                    if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
-                    {
-                        DisplayLensSelectionMenu();
-                    }
-                    break;
-                case Key.Escape:
-                    Application.Current.Shutdown();
-                    break;
-                default:
-                    break;
-            }
 
+        
 
-        }
+        
+        
         
         
     }

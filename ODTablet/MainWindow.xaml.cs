@@ -69,11 +69,11 @@ namespace ODTablet
                 VerticalAlignment = System.Windows.VerticalAlignment.Center
             };
             
-            AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.Overview, AppModeButton_Click));
-            AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.MultipleLenses, AppModeButton_Click));
-            AppModeMenu.Children.Add(CreateStackPanelButton(MapBoardMode.SingleLens, AppModeButton_Click));
-            AppModeMenu.Children.Add(CreateStackPanelButton("Reset all devices", SendRemoveAllLensCommand_Click));
-            AppModeMenu.Children.Add(CreateStackPanelButton("Synch", GetAllModes_Click));
+            AppModeMenu.Children.Add(CreateAppModeButton(MapBoardMode.Overview, AppModeButton_Click));
+            AppModeMenu.Children.Add(CreateAppModeButton(MapBoardMode.MultipleLenses, AppModeButton_Click));
+            AppModeMenu.Children.Add(CreateAppModeButton(MapBoardMode.SingleLens, AppModeButton_Click));
+            AppModeMenu.Children.Add(CreateRegularButton("Reset all devices", SendRemoveAllLensCommand_Click));
+            AppModeMenu.Children.Add(CreateRegularButton("Synch", GetAllModes_Click));
         }
 
         private void ConfigureLensSelectionMenu()
@@ -83,11 +83,11 @@ namespace ODTablet
                 Name = "LensSelectionMenu",
             };
 
-            LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Population.ToString(), LensSelectionButton_Click));
-            LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.ElectoralDistricts.ToString(), LensSelectionButton_Click));
-            LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Satellite.ToString(), LensSelectionButton_Click));
-            LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Streets.ToString(), LensSelectionButton_Click));
-            LensSelectionMenu.Children.Add(CreateStackPanelButton(LensType.Cities.ToString(), LensSelectionButton_Click));
+            LensSelectionMenu.Children.Add(CreateLensButton(LensType.Satellite.ToString(), LensSelectionButton_Click));
+            LensSelectionMenu.Children.Add(CreateLensButton(LensType.Streets.ToString(), LensSelectionButton_Click));
+            LensSelectionMenu.Children.Add(CreateLensButton(LensType.Population.ToString(), LensSelectionButton_Click));
+            LensSelectionMenu.Children.Add(CreateLensButton(LensType.ElectoralDistricts.ToString(), LensSelectionButton_Click));
+            LensSelectionMenu.Children.Add(CreateLensButton(LensType.Cities.ToString(), LensSelectionButton_Click));
         }
 
         private void ConfigureBackOffMenu()
@@ -108,8 +108,8 @@ namespace ODTablet
 
             if (CurrentAppMode == MapBoardMode.MultipleLenses || CurrentAppMode == MapBoardMode.SingleLens)
             {
-                DeactivateLensButton = CreateStackPanelButton("Deactivate", TurnOffLens_Click);
-                ActivateLensButton = CreateStackPanelButton("Activate", TurnOnLens_Click);
+                DeactivateLensButton = CreateRegularButton("Deactivate", TurnOffLens_Click);
+                ActivateLensButton = CreateRegularButton("Activate", TurnOnLens_Click);
                 if (CurrentLensIsActive && (!BackOffMenu.Children.Contains(DeactivateLensButton) || BackOffMenu.Children.Contains(ActivateLensButton)))
                 {
                     BackOffMenu.Children.Remove(ActivateLensButton);
@@ -132,21 +132,27 @@ namespace ODTablet
                 VerticalAlignment = System.Windows.VerticalAlignment.Top,
                 Orientation = Orientation.Horizontal,
             };
-            
-            OverviewMenu.Children.Add(CreateStackPanelButton("Remove all lenses", RemoveAllLens_Click));
-            OverviewMenu.Children.Add(CreateStackPanelButton("Reset Map", InitialState_Click));
+
+            OverviewMenu.Children.Add(CreateRegularButton("Remove all lenses", RemoveAllLens_Click));
+            OverviewMenu.Children.Add(CreateRegularButton("Reset Map", InitialState_Click));
         }
 
 
         # region Create buttons
-        private Button CreateStackPanelButton(string content, RoutedEventHandler reh)
+        private Button CreateLensButton(string content, RoutedEventHandler reh)
         {
-            // TODO: Color!
             Button b = new Button();
             b.Content = content;
             b.Width = 100;
             b.Height = 50;
             b.Click += reh;
+            if (Board != null && Board.LensCanBeActivated(content))
+            {
+                //b.BorderBrush = Brushes.Red;
+                b.Background = new SolidColorBrush(MapBoard.GetColorOf(content));
+                bool conditionToWhite = content.Equals(LensType.ElectoralDistricts.ToString()) || content.Equals(LensType.Cities.ToString());
+                b.Foreground = conditionToWhite ? Brushes.White : Brushes.Black;
+            }
             try
             {
                 b.Name = content;
@@ -159,16 +165,27 @@ namespace ODTablet
             return b;
         }
 
-        private UIElement CreateStackPanelButton(MapBoardMode appMode, RoutedEventHandler reh)
+        private Button CreateRegularButton(string content, RoutedEventHandler reh)
         {
-            // TODO: Color!
+            Button b = new Button();
+            b.Content = content;
+            b.Width = 100;
+            b.Height = 50;
+            b.Click += reh;
+            b.BorderBrush = Brushes.Black;
+            b.Background = Brushes.White;
+            return b;
+        }
+
+        private Button CreateAppModeButton(MapBoardMode appMode, RoutedEventHandler reh)
+        {
             Button b = new Button();
             b.Content = (MapBoardMode)appMode;
             b.Width = 100;
             b.Height = 50;
             b.Click += reh;
             b.Name = appMode.ToString();
-            b.BorderBrush = Brushes.Red;
+            b.BorderBrush = Brushes.Black;
             return b;
         }
 
@@ -237,7 +254,15 @@ namespace ODTablet
             }
         }
 
-        
+        private void DisplayCurrentLensLabel()
+        {
+            Label current = new Label();
+            current.Content = "Current lens: " + CurrentLens;
+            current.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+            current.VerticalAlignment = System.Windows.VerticalAlignment.Bottom;
+            Grid.SetZIndex(current, 99);
+            LayoutRoot.Children.Add(current);
+        }
 
         # endregion
 
@@ -287,8 +312,11 @@ namespace ODTablet
         private void LensSelectionButton_Click(object sender, RoutedEventArgs e)
         {
             CurrentLens = MapBoard.StringToLensType(((Button)sender).Name);
-            CurrentLensIsActive = true;
             LoadBoardUI();
+            if(!CurrentLensIsActive)
+            {
+                ActivateLens();
+            }
             //BroadcastCurrentExtent(); // TODO
         }
 
@@ -355,7 +383,13 @@ namespace ODTablet
                     IsHitTestVisible = true
                 };
                 LensMap.ExtentChanging += LensMap_ExtentChanging;
+                LensMap.Loaded += LensMap_Loaded;
             }
+        }
+
+        void LensMap_Loaded(object sender, RoutedEventArgs e)
+        {
+            BroadcastCurrentExtent();
         }
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
@@ -390,7 +424,11 @@ namespace ODTablet
             DisplayBaseMap();
             DisplayLensMap(lens);
             DisplayViewFindersOf(lens);
+            DisplayCurrentLensLabel();
+            BroadcastCurrentExtent();
         }
+
+        
 
         private void DisplayBaseMap()
         {
@@ -465,18 +503,19 @@ namespace ODTablet
                 LensMap.Opacity = 1;
             }
 
-            if (Board.ZUIIndexOf(CurrentLens) != -1)
+            if (Board.ZUIIndexOf(CurrentLens) != -1) // means it's initialized and in tha stack!
             {
                 if (Grid.GetZIndex(this.LensMap) != Board.ZUIIndexOf(CurrentLens))
                 {
                     Grid.SetZIndex(this.LensMap, Board.ZUIIndexOf(CurrentLens));
                 }
-            }
-            else
-            {
-                //LayoutRoot.Children.Remove(this.LensMap); // TODO: is it really needed?
-            }
 
+                if (CurrentLensIsActive && Board.GetLens(CurrentLens).Extent != this.LensMap.Extent)
+                {
+                    Board.GetLens(CurrentLens).Extent = this.LensMap.Extent;
+                }
+            }
+            
             RefreshViewFinders();
         }
 
@@ -485,9 +524,12 @@ namespace ODTablet
         # region ViewFinders
         private void DisplayViewFindersOf(LensType lens)
         {
-            foreach (KeyValuePair<LensType, Lens> viewfinders in Board.ViewFindersOf(lens))
+            if (CurrentAppMode != MapBoardMode.None)
             {
-                AddViewFinderToScreen(viewfinders.Key);
+                foreach (KeyValuePair<LensType, Lens> viewfinders in Board.ViewFindersOf(lens))
+                {
+                    AddViewFinderToScreen(viewfinders.Key);
+                }
             }
         }
 
@@ -498,19 +540,35 @@ namespace ODTablet
 
         private void AddViewFinderToScreen(LensType viewfinderType)
         {
-            Console.WriteLine("Adding "+viewfinderType+" viewfinder...");
-            Lens viewfinder = Board.GetLens(viewfinderType);
-            MapViewFinder mvf = new MapViewFinder(viewfinder.Color, viewfinder.Extent.ToString())
+            if(!ViewFinderExistsOnUI(viewfinderType))
             {
-                Map = this.BasemapMap,
-                Name = viewfinderType.ToString(),
-                Layers = MapBoard.GenerateMapLayerCollection(viewfinderType),
-            };
-            int ZUIIndex = Board.ZUIIndexOf(viewfinderType);
-            Grid.SetZIndex(mvf, ZUIIndex);
-            LayoutRoot.Children.Add(mvf);
-            mvf.UpdateExtent(viewfinder.Extent.ToString());
-            mvf.Loaded += mvf_Loaded;
+                Console.WriteLine("Adding " + viewfinderType + " viewfinder...");
+                Lens viewfinder = Board.GetLens(viewfinderType);
+                MapViewFinder mvf = new MapViewFinder(viewfinder.Color, viewfinder.Extent.ToString())
+                {
+                    Map = this.BasemapMap,
+                    Name = viewfinderType.ToString(),
+                    Layers = MapBoard.GenerateMapLayerCollection(viewfinderType),
+                };
+                int ZUIIndex = Board.ZUIIndexOf(viewfinderType);
+                Grid.SetZIndex(mvf, ZUIIndex);
+                LayoutRoot.Children.Add(mvf);
+                mvf.UpdateExtent(viewfinder.Extent.ToString());
+                mvf.Loaded += mvf_Loaded;
+            }
+        }
+
+        private bool ViewFinderExistsOnUI(LensType viewfinderType)
+        {
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
+            {
+                if (LayoutRoot.Children[i] is MapViewFinder)
+                {
+                    LensType type = MapBoard.StringToLensType(((MapViewFinder)LayoutRoot.Children[i]).Name);
+                    if (type == viewfinderType) return true;
+                }
+            }
+            return false;
         }
 
         void mvf_Loaded(object sender, RoutedEventArgs e)
@@ -554,6 +612,7 @@ namespace ODTablet
             {
                 if (LayoutRoot.Children[i] is MapViewFinder)
                 {
+                    Console.WriteLine("Removing " + ((MapViewFinder)LayoutRoot.Children[i]).Name + " viewfinder");
                     LayoutRoot.Children.Remove(LayoutRoot.Children[i]);
                 }
             }
@@ -589,19 +648,22 @@ namespace ODTablet
 
         public void ActivateLens()
         {
+            Console.WriteLine("Activating " + CurrentLens);
             CurrentLensIsActive = true;
             // Make UI available
             this.LensMap.IsHitTestVisible = true;
             Board.GetLens(CurrentLens).Extent = this.BasemapMap.Extent;
+            Board.BringToFront(CurrentLens); // TODO : is this really OK?
             DisplayBackOffMenu();
             RefreshMaps();
+            BroadcastCurrentExtent();
         }
 
         public void DeactivateLens()
         {
             SendRemoveLensModeMessage();
             CurrentLensIsActive = false;
-            ////Make UI unavailable
+            // Make UI unavailable
             this.LensMap.IsHitTestVisible = false;
             Board.RemoveLens(CurrentLens);
             DisplayBackOffMenu();
@@ -622,10 +684,10 @@ namespace ODTablet
 
         void Board_LensCollectionChanged(object sender, EventArgs exception)
         {
-            Console.WriteLine("Lens collection changed.");
+            Console.WriteLine("Lens collection has changed.");
             if (CurrentAppMode != MapBoardMode.None)
             {
-                Console.WriteLine("Refreshing UI.");
+                Console.WriteLine("Refreshing UI to attend collection updates.");
                 RefreshMaps();
             }
         }
@@ -736,7 +798,7 @@ namespace ODTablet
             }
             catch (Exception exception)
             {
-                Console.WriteLine("Problem when broadcasting: " + exception.Message);
+                Console.WriteLine("Problem while broadcasting: " + exception.Message);
             }
 
         }

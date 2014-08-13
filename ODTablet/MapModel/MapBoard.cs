@@ -199,6 +199,14 @@ namespace ODTablet.MapModel
             return lensStack.IndexOf(lens);
             //return _lensCollection[lens].UIIndex;
         }
+
+
+        internal void BringToFront(LensType CurrentLens)
+        {
+            lensStack.Remove(CurrentLens);
+            UpdateZIndex(CurrentLens, (int?)null);
+        }
+
         # endregion
 
 
@@ -252,6 +260,24 @@ namespace ODTablet.MapModel
         public static LayerCollection GenerateMapLayerCollection(LensType lens) // Method used to create new layers and avoid the "Layer is being used by another map" problem.
         {
             return new LensFactory().CreateLens(lens).MapLayerCollection;
+        }
+
+        public static System.Windows.Media.Color GetColorOf(LensType lens)
+        {
+            return new LensFactory().CreateLens(lens).Color;
+        }
+
+        public static System.Windows.Media.Color GetColorOf(string lens)
+        {
+            try
+            {
+                return new LensFactory().CreateLens((StringToLensType(lens))).Color;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("Invalid lens: " + lens + " " + e.Message);
+                return System.Windows.Media.Colors.Red;
+            }
         }
 
         public Dictionary<string, string> ActiveLensesToDictionary()
@@ -313,7 +339,7 @@ namespace ODTablet.MapModel
             return lens != LensType.None && lens != LensType.All;
         }
 
-        private bool LensCanBeActivated(String lens)
+        public bool LensCanBeActivated(String lens)
         {
             try
             {
@@ -381,6 +407,5 @@ namespace ODTablet.MapModel
 
 
 
-        
     }
 }

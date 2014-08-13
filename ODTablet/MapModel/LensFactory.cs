@@ -64,8 +64,8 @@ namespace ODTablet.MapModel
             {LensType.Basemap, Colors.Black},
             {LensType.Satellite, Colors.Green},
             {LensType.Streets, Colors.Red},
-            {LensType.Population, Colors.Black},
-            {LensType.ElectoralDistricts, Colors.Ivory},
+            {LensType.Population, Colors.Yellow},
+            {LensType.ElectoralDistricts, Colors.Black},
             {LensType.Cities, Colors.Blue},
         };
 

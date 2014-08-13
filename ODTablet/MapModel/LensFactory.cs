@@ -16,7 +16,7 @@ namespace ODTablet.MapModel
 
         static private double[] CanadaExtent = { -16133214.9413533, 5045906.11392677, -5418285.97972558, 10721470.048289 };
 
-        static private double[] CalgaryExtent = {-12698770.20, 6629884.68,-12696155.45, 6628808.53};
+        static private double[] CalgaryExtent = { -12698770.20, 6629884.68, -12696155.45, 6628808.53 };
 
         static private string
               WorldStreetMap = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" // Streets!
@@ -37,38 +37,39 @@ namespace ODTablet.MapModel
                 {LensType.Cities, WorldBoundariesAndPlacesLabels},
             };
 
-            Envelope CanadaEnvelope = new Envelope()
-            {
-                XMin = CanadaExtent[0],
-                YMin = CanadaExtent[1],
-                XMax = CanadaExtent[2],
-                YMax = CanadaExtent[3],
-                //SpatialReference = new SpatialReference();//102100
-            };
+        Envelope CanadaEnvelope = new Envelope()
+        {
+            XMin = CanadaExtent[0],
+            YMin = CanadaExtent[1],
+            XMax = CanadaExtent[2],
+            YMax = CanadaExtent[3],
+            SpatialReference = new SpatialReference() { WKID = 3857 }
+        };
 
 
-            Envelope CalgaryEnvelope = new Envelope()
-            {
-                XMin = CalgaryExtent[0],
-                YMin = CalgaryExtent[1],
-                XMax = CalgaryExtent[2],
-                YMax = CalgaryExtent[3],
-            };
+        Envelope CalgaryEnvelope = new Envelope()
+        {
+            XMin = CalgaryExtent[0],
+            YMin = CalgaryExtent[1],
+            XMax = CalgaryExtent[2],
+            YMax = CalgaryExtent[3],
+            SpatialReference = new SpatialReference() { WKID = 3857 }
+        };
 
-            Dictionary<LensType, Envelope> ModeExtentDic;
+        Dictionary<LensType, Envelope> ModeExtentDic;
 
 
-            Dictionary<LensType, Color> VFColorDic = new Dictionary<LensType, Color>()
-            {
-                {LensType.Basemap, Colors.Black},
-                {LensType.Satellite, Colors.Green},
-                {LensType.Streets, Colors.Red},
-                {LensType.Population, Colors.Black},
-                {LensType.ElectoralDistricts, Colors.Ivory},
-                {LensType.Cities, Colors.Blue},
-            };
+        Dictionary<LensType, Color> VFColorDic = new Dictionary<LensType, Color>()
+        {
+            {LensType.Basemap, Colors.Black},
+            {LensType.Satellite, Colors.Green},
+            {LensType.Streets, Colors.Red},
+            {LensType.Population, Colors.Black},
+            {LensType.ElectoralDistricts, Colors.Ivory},
+            {LensType.Cities, Colors.Blue},
+        };
 
-            Dictionary<LensType, Layer> ModeLayerDic = new Dictionary<LensType, Layer>()
+        Dictionary<LensType, Layer> ModeLayerDic = new Dictionary<LensType, Layer>()
         {
             {LensType.Basemap, null},
             {LensType.Satellite, null},
@@ -98,18 +99,18 @@ namespace ODTablet.MapModel
                 {LensType.Cities, CanadaEnvelope}
             };
 
-            BasemapLayer = new ArcGISTiledMapServiceLayer { Url =  UrlDic[LensType.Basemap]};
+            BasemapLayer = new ArcGISTiledMapServiceLayer { Url = UrlDic[LensType.Basemap] };
 
             SatelliteLayer = new ArcGISTiledMapServiceLayer() { Url = UrlDic[LensType.Satellite] };
-            
+
             StreetMapLayer = new ArcGISTiledMapServiceLayer { Url = UrlDic[LensType.Streets] };
-                        
+
             PopulationLayer = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[LensType.Population] };
             PopulationLayer.DisableClientCaching = false;
 
             ElectoralDistrictsLayer = new ArcGISDynamicMapServiceLayer { Url = UrlDic[LensType.ElectoralDistricts] }; //new FeatureLayer() { Url = UrlDic[LensType.ElectoralDistricts] };
             ElectoralDistrictsLayer.DisableClientCaching = false;
-            
+
             CitiesLayer = new ArcGISDynamicMapServiceLayer() { Url = UrlDic[LensType.Cities] };
             CitiesLayer.DisableClientCaching = false;
 

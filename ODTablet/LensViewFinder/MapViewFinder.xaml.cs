@@ -136,7 +136,7 @@ namespace ODTablet.LensViewFinder
             }
             else
             {
-                Console.WriteLine(this.Name + " was friendzoned.");
+                //Console.WriteLine(this.Name + " was friendzoned.");
             }
         }
 

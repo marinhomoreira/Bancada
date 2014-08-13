@@ -216,7 +216,7 @@ namespace ODTablet.MapModel
             return _lensCollection[lens];
         }
 
-        public Dictionary<LensType, Lens> ViewFindersOf(LensType lens)
+        public Dictionary<LensType, Lens> ViewFindersOnTopOf(LensType lens)
         {
             Dictionary<LensType, Lens> vfal = new Dictionary<LensType,Lens>();
             foreach(KeyValuePair<LensType, Lens> viewfinder in _lensCollection)
@@ -224,6 +224,23 @@ namespace ODTablet.MapModel
                 if (viewfinder.Key != lens 
                     && viewfinder.Key != LensType.Basemap 
                     && viewfinder.Key != LensType.None 
+                    && viewfinder.Key != LensType.All
+                    && ZUIIndexOf(viewfinder.Key) > ZUIIndexOf(lens))
+                {
+                    vfal.Add(viewfinder.Key, viewfinder.Value);
+                }
+            }
+            return vfal;
+        }
+
+        public Dictionary<LensType, Lens> ViewFindersOf(LensType lens)
+        {
+            Dictionary<LensType, Lens> vfal = new Dictionary<LensType, Lens>();
+            foreach (KeyValuePair<LensType, Lens> viewfinder in _lensCollection)
+            {
+                if (viewfinder.Key != lens
+                    && viewfinder.Key != LensType.Basemap
+                    && viewfinder.Key != LensType.None
                     && viewfinder.Key != LensType.All)
                 {
                     vfal.Add(viewfinder.Key, viewfinder.Value);
@@ -361,6 +378,8 @@ namespace ODTablet.MapModel
                 ViewFindersChanged(this, e);
             }
         }
+
+
 
         
     }

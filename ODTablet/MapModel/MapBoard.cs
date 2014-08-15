@@ -20,7 +20,9 @@ namespace ODTablet.MapModel
 
         public event ChangedEventHandler LensCollectionChanged;
         public event ChangedEventHandler ViewFindersChanged;
-        
+
+        private List<LensType> lensStack;
+
         public Dictionary<LensType, Lens> ActiveLenses
         {
             get { return _lensCollection; }
@@ -29,6 +31,8 @@ namespace ODTablet.MapModel
         public MapBoard()
         {
             _lensCollection = new Dictionary<LensType, Lens>();
+            lensStack = new List<LensType>();
+            lensStack.Add(LensType.Basemap);
         }
         
         bool isDirty = false;
@@ -117,7 +121,7 @@ namespace ODTablet.MapModel
 
         # region ZUIIndex
 
-        private List<LensType> lensStack = new List<LensType>();
+        
         public void UpdateZIndex(LensType lens, int? zIndex)
         {
             // Basemap is always 0;

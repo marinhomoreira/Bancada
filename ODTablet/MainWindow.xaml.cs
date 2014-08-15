@@ -494,17 +494,8 @@ namespace ODTablet
 
         private void RefreshMaps()
         {
-            if (CurrentLens != null && CurrentLens != LensType.None && CurrentLens != LensType.All)
+            if (CurrentLens != LensType.None && CurrentLens != LensType.All)
             {
-                if (!CurrentLensIsActive)
-                {
-                    LensMap.Opacity = 0.5;
-                }
-                else
-                {
-                    LensMap.Opacity = 1;
-                }
-
                 if (Board.ZUIIndexOf(CurrentLens) != -1) // means it's initialized and in tha stack!
                 {
                     if (Grid.GetZIndex(this.LensMap) != Board.ZUIIndexOf(CurrentLens))
@@ -658,7 +649,7 @@ namespace ODTablet
             Board.GetLens(CurrentLens).Extent = this.BasemapMap.Extent;
             Board.BringToFront(CurrentLens); // TODO : is this really OK?
             DisplayBackOffMenu();
-            RefreshMaps();
+            LensMap.Opacity = 1;
             BroadcastCurrentExtent();
         }
 
@@ -670,7 +661,7 @@ namespace ODTablet
             this.LensMap.IsHitTestVisible = false;
             Board.RemoveLens(CurrentLens);
             DisplayBackOffMenu();
-            RefreshMaps();
+            LensMap.Opacity = 0.5;
         }
 
         # endregion

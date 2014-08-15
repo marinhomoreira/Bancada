@@ -526,9 +526,10 @@ namespace ODTablet
         {
             if (CurrentAppMode != MapBoardMode.None)
             {
-                foreach (KeyValuePair<LensType, Lens> viewfinders in Board.ViewFindersOf(lens))
+                foreach (KeyValuePair<LensType, Lens> viewfinders in Board.AllActiveLenses())
                 {
-                    AddViewFinderToScreen(viewfinders.Key);
+                    if(viewfinders.Key != CurrentLens)
+                        AddViewFinderToScreen(viewfinders.Key);
                 }
             }
         }
@@ -845,7 +846,7 @@ namespace ODTablet
                 }));
             }
 
-            if (updateMode != null && !updateMode.Equals(CurrentLens.ToString()))
+            if (updateMode != null)// && !updateMode.Equals(CurrentLens.ToString()))
             {
                 this.Dispatcher.Invoke((Action)(() =>
                 {

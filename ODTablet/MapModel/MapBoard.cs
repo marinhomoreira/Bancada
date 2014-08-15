@@ -257,6 +257,22 @@ namespace ODTablet.MapModel
             return vfal;
         }
 
+        public Dictionary<LensType, Lens> AllActiveLenses()
+        {
+            Dictionary<LensType, Lens> vfal = new Dictionary<LensType, Lens>();
+            foreach (KeyValuePair<LensType, Lens> viewfinder in _lensCollection)
+            {
+                if (viewfinder.Key != LensType.Basemap
+                    && viewfinder.Key != LensType.None
+                    && viewfinder.Key != LensType.All)
+                {
+                    vfal.Add(viewfinder.Key, viewfinder.Value);
+                }
+            }
+            return vfal;
+        }
+        
+
         public static LayerCollection GenerateMapLayerCollection(LensType lens) // Method used to create new layers and avoid the "Layer is being used by another map" problem.
         {
             return new LensFactory().CreateLens(lens).MapLayerCollection;

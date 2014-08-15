@@ -494,29 +494,31 @@ namespace ODTablet
 
         private void RefreshMaps()
         {
-            if (!CurrentLensIsActive)
+            if (CurrentLens != null && CurrentLens != LensType.None && CurrentLens != LensType.All)
             {
-                LensMap.Opacity = 0.5;
-            }
-            else
-            {
-                LensMap.Opacity = 1;
-            }
-
-            if (Board.ZUIIndexOf(CurrentLens) != -1) // means it's initialized and in tha stack!
-            {
-                if (Grid.GetZIndex(this.LensMap) != Board.ZUIIndexOf(CurrentLens))
+                if (!CurrentLensIsActive)
                 {
-                    Grid.SetZIndex(this.LensMap, Board.ZUIIndexOf(CurrentLens));
+                    LensMap.Opacity = 0.5;
+                }
+                else
+                {
+                    LensMap.Opacity = 1;
                 }
 
-                if (CurrentLensIsActive && Board.GetLens(CurrentLens).Extent != this.LensMap.Extent)
+                if (Board.ZUIIndexOf(CurrentLens) != -1) // means it's initialized and in tha stack!
                 {
-                    Board.GetLens(CurrentLens).Extent = this.LensMap.Extent;
+                    if (Grid.GetZIndex(this.LensMap) != Board.ZUIIndexOf(CurrentLens))
+                    {
+                        Grid.SetZIndex(this.LensMap, Board.ZUIIndexOf(CurrentLens));
+                    }
+
+                    if (CurrentLensIsActive && Board.GetLens(CurrentLens).Extent != this.LensMap.Extent)
+                    {
+                        Board.GetLens(CurrentLens).Extent = this.LensMap.Extent;
+                    }
                 }
+                RefreshViewFinders();
             }
-            
-            RefreshViewFinders();
         }
 
         # endregion

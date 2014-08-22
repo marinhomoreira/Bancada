@@ -48,14 +48,87 @@ namespace ODTablet
             DisplayStartMenu();
 
             Board = new MapBoard();
-            Board.LensCollectionChanged += Board_LensCollectionChanged;
-            Board.ViewFindersChanged += Board_ViewFindersChanged;
-            
+            //Board.LensCollectionChanged += Board_LensCollectionChanged;
+            //Board.ViewFindersChanged += Board_ViewFindersChanged;
+            Board.LensAdded += Board_LensAdded;
+            Board.LensExtentUpdated += Board_LensExtentUpdated;
+            Board.LensRemoved += Board_LensRemoved;
+            Board.LensStackPositionChanged += Board_LensStackPositionChanged;
+
             // SOD stuff
             ConfigureSoD();
             ConfigureDevice();
             RegisterSoDEvents();
         }
+
+        
+
+        private void UpdateUIExtentOf(LensType lens)
+        {
+            if (CurrentLens != lens)
+            {
+                UpdateViewFinderExtent(lens);
+            }
+            else
+            {
+                // TODO : ?
+            }
+        }
+
+        private void UpdateViewFinderExtent(LensType lens)
+        {
+            throw new NotImplementedException();
+        }
+
+        private int GetViewFinderUIIndex(LensType lens)
+        {
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
+            {
+                if (LayoutRoot.Children[i] is MapViewFinder)
+                {
+                    LensType type = MapBoard.StringToLensType(((MapViewFinder)LayoutRoot.Children[i]).Name);
+                    if (type == lens) return i;
+                }
+            }
+            return -1;
+        }
+
+        private void RemoveFromUI(LensType lens)
+        {
+            // TODO: Update stack box, if present.
+            if (CurrentLens == lens)
+            {
+                //TODO: Deactivate(lens);
+            }
+            else
+            {
+                if (ViewFinderExistsOnUI(lens))
+                {
+                    LayoutRoot.Children.RemoveAt(GetViewFinderUIIndex(lens));
+                }
+            }
+        }
+
+        private void UpdateZPositionOf(LensType lens)
+        {
+            // TODO: Update stack box, if present.
+            if (CurrentLens == lens)
+            {
+                Grid.SetZIndex(LensMap, Board.ZUIIndexOf(lens));
+            }
+            else
+            {
+                if (ViewFinderExistsOnUI(lens))
+                {
+                    Grid.SetZIndex(LayoutRoot.Children[GetViewFinderUIIndex(lens)], Board.ZUIIndexOf(lens));
+                }
+                else
+                {
+                    AddViewFinderToScreen(lens);
+                }
+            }
+        }
+
 
         
         # region Menus' configs
@@ -387,10 +460,6 @@ namespace ODTablet
             }
         }
 
-        void LensMap_Loaded(object sender, RoutedEventArgs e)
-        {
-            BroadcastCurrentExtent();
-        }
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
@@ -427,8 +496,6 @@ namespace ODTablet
             DisplayCurrentLensLabel();
             BroadcastCurrentExtent();
         }
-
-        
 
         private void DisplayBaseMap()
         {
@@ -477,8 +544,6 @@ namespace ODTablet
                 Grid.SetZIndex(legend, 99);
                 LayoutRoot.Children.Add(legend);
             }
-
-            
         }
 
         private void DisplayLensMap()
@@ -668,22 +733,84 @@ namespace ODTablet
 
 
         # region Events and key handlers
-        void Board_ViewFindersChanged(object sender, EventArgs exception)
+        //void Board_ViewFindersChanged(object sender, EventArgs exception)
+        //{
+        //    if (CurrentAppMode != MapBoardMode.None)
+        //    {
+        //        UpdateAllLensAccordingCurrentModeExtent();
+        //    }
+        //}
+
+        //void Board_LensCollectionChanged(object sender, EventArgs exception)
+        //{
+        //    Console.WriteLine("Lens collection has changed.");
+        //    if (CurrentAppMode != MapBoardMode.None)
+        //    {
+        //        Console.WriteLine("Refreshing UI to attend collection updates.");
+        //        RefreshMaps();
+        //    }
+        //}
+
+        void Board_LensStackPositionChanged(object sender, LensEventArgs e)
         {
             if (CurrentAppMode != MapBoardMode.None)
             {
-                UpdateAllLensAccordingCurrentModeExtent();
+                LensType lens = e.ModifiedLens;
+                UpdateZPositionOf(lens);
             }
         }
 
-        void Board_LensCollectionChanged(object sender, EventArgs exception)
+        void Board_LensRemoved(object sender, LensEventArgs e)
         {
-            Console.WriteLine("Lens collection has changed.");
             if (CurrentAppMode != MapBoardMode.None)
             {
-                Console.WriteLine("Refreshing UI to attend collection updates.");
-                RefreshMaps();
+                LensType lens = e.ModifiedLens;
+                if (CurrentLens != lens)
+                {
+                    RemoveFromUI(lens);
+                }
+                else
+                {
+                    // TODO: NOW WHAT?
+                }
             }
+        }
+
+        void Board_LensExtentUpdated(object sender, LensEventArgs e)
+        {
+            if (CurrentAppMode != MapBoardMode.None)
+            {
+                LensType lens = e.ModifiedLens;
+                if (CurrentLens != lens)
+                {
+                    UpdateUIExtentOf(lens);
+                }
+                else
+                {
+                    // TODO: NOW WHAT?
+                }
+            }
+        }
+
+        void Board_LensAdded(object sender, LensEventArgs e)
+        {
+            if (CurrentAppMode != MapBoardMode.None)
+            {
+                LensType lens = e.ModifiedLens;
+                if (CurrentLens != lens)
+                {
+                    AddViewFinderToScreen(lens);
+                }
+                else
+                {
+                    // TODO: NOW WHAT?
+                }
+            }
+        }
+
+        void LensMap_Loaded(object sender, RoutedEventArgs e)
+        {
+            BroadcastCurrentExtent();
         }
 
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
@@ -835,7 +962,7 @@ namespace ODTablet
                 this.Dispatcher.Invoke((Action)(() =>
                 {
                     Console.WriteLine("Dictionary with table config received!");
-                    Board.ClearBoardAndDisplayLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
+                    Board.ClearBoardAndStackLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
                 }));
             }
 

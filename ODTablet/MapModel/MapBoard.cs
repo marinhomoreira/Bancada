@@ -12,21 +12,30 @@ namespace ODTablet.MapModel
     public enum MapBoardMode {None, Overview, SingleLens, MultipleLenses };
     public enum LensType { None, All, Satellite, Streets, Population, ElectoralDistricts, Cities, Basemap };
 
-    public delegate void ChangedEventHandler(object sender, EventArgs e);
+
+    // TODO: Own file for this, please?
+    public delegate void LensModifiedEventHandler(object sender, LensEventArgs e);
+
+    public class LensEventArgs : EventArgs
+    {
+        public readonly LensType ModifiedLens;
+        public LensEventArgs(LensType lens)
+        {
+            ModifiedLens = lens;
+        }
+    }
 
     class MapBoard
     {
         private Dictionary<LensType, Lens> _lensCollection;
 
-        public event ChangedEventHandler LensCollectionChanged;
-        public event ChangedEventHandler ViewFindersChanged;
+        public event LensModifiedEventHandler LensRemoved;
+        public event LensModifiedEventHandler LensAdded;
+        public event LensModifiedEventHandler LensExtentUpdated;
+        public event LensModifiedEventHandler LensCollectionChanged; // Not used.
+        public event LensModifiedEventHandler LensStackPositionChanged;
 
         private List<LensType> lensStack;
-
-        public Dictionary<LensType, Lens> ActiveLenses
-        {
-            get { return _lensCollection; }
-        }
 
         public MapBoard()
         {
@@ -35,9 +44,7 @@ namespace ODTablet.MapModel
             lensStack.Add(LensType.Basemap);
         }
         
-        bool isDirty = false;
-
-        # region ClearBoardAndDisplayLensesAccordingToOverview
+        # region Update Lens
         public void UpdateLens(String lensName, String extent)
         {
             LensType lens = StringToLensType(lensName);
@@ -51,7 +58,15 @@ namespace ODTablet.MapModel
             UpdateLens(lens, e);
         }
 
-
+        public void UpdateLens(LensType lens, Envelope extent, string ZIndex)
+        {
+            UpdateLens(lens, extent);
+            if (LensIsActive(lens))
+            {
+                UpdateZIndex(lens, ZIndex);
+            }
+        }
+        
         // What really matters starts here
         public void UpdateLens(LensType lens, Envelope extent)
         {
@@ -60,39 +75,26 @@ namespace ODTablet.MapModel
                 if(extent != null) // TODO: ExtentIsValid()?
                 {
                     _lensCollection.Add(lens, new LensFactory().CreateLens(lens, extent));
-
                 }
                 else
                 {
                     _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
                 }
                 lensStack.Add(lens);
-                OnLensCollectionChanged(EventArgs.Empty);
+                OnLensAdded(new LensEventArgs(lens));
             }
             else
             {
                 if (!_lensCollection[lens].Extent.ToString().Equals(extent.ToString())) // TODO: Change this for something better!
                 {
                     _lensCollection[lens].Extent = extent;
-                    isDirty = true;
+                    OnLensExtentUpdated(new LensEventArgs(lens));
                 }
             }
             UpdateZIndex(lens, (string)null);
-            SendViewFindersChangedEventIfDirty();
         }
-
-        public void UpdateLens(LensType lens, Envelope extent, string ZIndex)
-        {
-            UpdateLens(lens, extent);
-            if(LensIsActive(lens))
-            {
-                UpdateZIndex(lens, ZIndex);
-            }
-        }
-
-        
-
-        public void ClearBoardAndDisplayLensesAccordingToOverview(Dictionary<string, string> remoteDictionary)
+                
+        public void ClearBoardAndStackLensesAccordingToOverview(Dictionary<string, string> remoteDictionary)
         {
             if (remoteDictionary.Count > 1)
             {
@@ -129,7 +131,7 @@ namespace ODTablet.MapModel
             {
                 lensStack.Remove(lens);
                 lensStack.Insert(0, lens);
-                isDirty = true;
+                OnLensStackPositionChanged(new LensEventArgs(lens));
                 return;
             }
 
@@ -139,7 +141,7 @@ namespace ODTablet.MapModel
                 {
                     // No lens present and zIndex is null, just add to the stack.
                     lensStack.Add(lens);
-                    isDirty = true;
+                    OnLensStackPositionChanged(new LensEventArgs(lens));
                 }
             }
             else
@@ -148,7 +150,7 @@ namespace ODTablet.MapModel
                 {
                     // zIndex is valid but the stack doesn't contain the given lens
                     lensStack.Insert((int)zIndex, lens);
-                    isDirty = true;
+                    OnLensStackPositionChanged(new LensEventArgs(lens));
                 }
                 else
                 {
@@ -157,11 +159,10 @@ namespace ODTablet.MapModel
                     {
                         lensStack.Remove(lens);
                         lensStack.Insert((int)zIndex, lens);
-                        isDirty = true;
+                        OnLensStackPositionChanged(new LensEventArgs(lens));
                     }
                 }
             }
-            SendViewFindersChangedEventIfDirty();
         }
 
         public void UpdateZIndex(string lensName, string zIndex)
@@ -201,7 +202,6 @@ namespace ODTablet.MapModel
         public int ZUIIndexOf(LensType lens)
         {
             return lensStack.IndexOf(lens);
-            //return _lensCollection[lens].UIIndex;
         }
 
 
@@ -212,11 +212,6 @@ namespace ODTablet.MapModel
         }
 
         # endregion
-
-
-
-        
-
 
 
         public Lens GetLens(LensType lens)
@@ -320,13 +315,13 @@ namespace ODTablet.MapModel
             {
                 _lensCollection.Remove(lens);
                 lensStack.Remove(lens);
-                OnLensCollectionChanged(EventArgs.Empty);
+                OnLensRemoved(new LensEventArgs(lens));
                 return true;
             } else if(lens == LensType.All)
             {
                 lensStack.Clear();
                 _lensCollection.Clear();
-                OnLensCollectionChanged(EventArgs.Empty);
+                OnLensRemoved(new LensEventArgs(LensType.All));
                 return true;
             }
             return false;
@@ -344,8 +339,6 @@ namespace ODTablet.MapModel
                 return false;
             }
         }
-
-
 
 
 
@@ -385,7 +378,6 @@ namespace ODTablet.MapModel
             myEnvelope.YMin = extentPoints[1];
             myEnvelope.XMax = extentPoints[2];
             myEnvelope.YMax = extentPoints[3];
-            //myEnvelope.SpatialReference = this.BasemapMap.SpatialReference; //TODO: how to define this?
             return myEnvelope;
         }
        
@@ -398,18 +390,27 @@ namespace ODTablet.MapModel
         {
             return (MapBoardMode)Enum.Parse(typeof(MapBoardMode), mapboardMode, true);
         }
+        
+        
+        
 
-
-        public void SendViewFindersChangedEventIfDirty()
+        protected virtual void OnLensExtentUpdated(LensEventArgs e)
         {
-            if (isDirty)
+            if(LensExtentUpdated != null)
             {
-                OnViewFindersChanged(EventArgs.Empty);
-                isDirty = false;
+                LensExtentUpdated(this, e);
             }
         }
 
-        protected virtual void OnLensCollectionChanged(EventArgs e)
+        protected virtual void OnLensStackPositionChanged(LensEventArgs e)
+        {
+            if(LensStackPositionChanged != null)
+            {
+                LensStackPositionChanged(this, e);
+            }
+        }
+
+        protected virtual void OnLensCollectionChanged(LensEventArgs e)
         {
             if (LensCollectionChanged != null)
             {
@@ -417,7 +418,23 @@ namespace ODTablet.MapModel
             }
         }
 
-        protected virtual void OnViewFindersChanged(EventArgs e)
+        protected virtual void OnLensRemoved(LensEventArgs e)
+        {
+            if (LensRemoved != null)
+            {
+                LensRemoved(this, e);
+            }
+        }
+
+        protected virtual void OnLensAdded(LensEventArgs e)
+        {
+            if (LensAdded != null)
+            {
+                LensAdded(this, e);
+            }
+        }
+
+        protected virtual void OnViewFindersChanged(LensEventArgs e)
         {
             if (ViewFindersChanged != null)
             {

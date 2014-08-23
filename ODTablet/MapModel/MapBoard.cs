@@ -433,16 +433,5 @@ namespace ODTablet.MapModel
                 LensAdded(this, e);
             }
         }
-
-        protected virtual void OnViewFindersChanged(LensEventArgs e)
-        {
-            if (ViewFindersChanged != null)
-            {
-                ViewFindersChanged(this, e);
-            }
-        }
-
-
-
     }
 }

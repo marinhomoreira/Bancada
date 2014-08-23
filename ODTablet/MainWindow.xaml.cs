@@ -48,8 +48,6 @@ namespace ODTablet
             DisplayStartMenu();
 
             Board = new MapBoard();
-            //Board.LensCollectionChanged += Board_LensCollectionChanged;
-            //Board.ViewFindersChanged += Board_ViewFindersChanged;
             Board.LensAdded += Board_LensAdded;
             Board.LensExtentUpdated += Board_LensExtentUpdated;
             Board.LensRemoved += Board_LensRemoved;
@@ -62,7 +60,6 @@ namespace ODTablet
         }
 
         
-
         private void UpdateUIExtentOf(LensType lens)
         {
             if (CurrentLens != lens)
@@ -72,12 +69,17 @@ namespace ODTablet
             else
             {
                 // TODO : ?
+                LensMap.Extent = Board.GetLens(lens).Extent;
             }
         }
 
         private void UpdateViewFinderExtent(LensType lens)
         {
-            throw new NotImplementedException();
+            if(ViewFinderExistsOnUI(lens))
+            {
+                int i = GetViewFinderUIIndex(lens);
+                ((MapViewFinder)LayoutRoot.Children[i]).UpdateExtent(Board.ViewFindersOf(CurrentLens)[lens].Extent.ToString());
+            }
         }
 
         private int GetViewFinderUIIndex(LensType lens)
@@ -115,12 +117,14 @@ namespace ODTablet
             if (CurrentLens == lens)
             {
                 Grid.SetZIndex(LensMap, Board.ZUIIndexOf(lens));
+                UpdateAllLensAccordingCurrentModeExtent();
             }
-            else
+            else if(lens != LensType.None)
             {
                 if (ViewFinderExistsOnUI(lens))
                 {
                     Grid.SetZIndex(LayoutRoot.Children[GetViewFinderUIIndex(lens)], Board.ZUIIndexOf(lens));
+                    UpdateAllLensAccordingCurrentModeExtent();
                 }
                 else
                 {
@@ -540,7 +544,7 @@ namespace ODTablet
                 legend.VerticalAlignment = System.Windows.VerticalAlignment.Top;
                 legend.LayerIDs = new string[] { lens.ToString() };
                 legend.LayerItemsMode = ESRI.ArcGIS.Client.Toolkit.Legend.Mode.Flat;
-                legend.ShowOnlyVisibleLayers = true;
+                legend.ShowOnlyVisibleLayers = false;
                 Grid.SetZIndex(legend, 99);
                 LayoutRoot.Children.Add(legend);
             }
@@ -765,7 +769,7 @@ namespace ODTablet
             if (CurrentAppMode != MapBoardMode.None)
             {
                 LensType lens = e.ModifiedLens;
-                if (CurrentLens != lens)
+                if (CurrentLens != lens && CurrentLens != LensType.None)
                 {
                     RemoveFromUI(lens);
                 }
@@ -781,7 +785,7 @@ namespace ODTablet
             if (CurrentAppMode != MapBoardMode.None)
             {
                 LensType lens = e.ModifiedLens;
-                if (CurrentLens != lens)
+                if (CurrentLens != lens && CurrentLens != LensType.None)
                 {
                     UpdateUIExtentOf(lens);
                 }
@@ -797,7 +801,7 @@ namespace ODTablet
             if (CurrentAppMode != MapBoardMode.None)
             {
                 LensType lens = e.ModifiedLens;
-                if (CurrentLens != lens)
+                if (CurrentLens != lens && CurrentLens != LensType.None)
                 {
                     AddViewFinderToScreen(lens);
                 }

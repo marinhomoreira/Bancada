@@ -128,6 +128,7 @@ namespace ODTablet.LensViewFinder
                     TranslateVF(MapLensIntersectionExtent);
                     this.VFMap.Extent = MapLensIntersectionExtent;
                     lastValidExtent = this.VFMap.Extent.ToString();
+                    this.Opacity = 1;
                 }
                 catch (InvalidOperationException e)
                 {
@@ -137,6 +138,7 @@ namespace ODTablet.LensViewFinder
             else
             {
                 //Console.WriteLine(this.Name + " was friendzoned.");
+                this.Opacity = 0;
             }
         }
 

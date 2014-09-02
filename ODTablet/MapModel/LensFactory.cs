@@ -22,11 +22,11 @@ namespace ODTablet.MapModel
               WorldStreetMap = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer" // Streets!
             , WorldShadedRelief = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Shaded_Relief/MapServer" // Just shades
             , WorldSatelliteImagery = "http://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer" // Images from satellites
-            //, WorldBoundariesAndPlacesLabels = "http://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer" // Just labels
+            , WorldBoundariesAndPlacesLabels = "http://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer" // Just labels
             , CanadaElectoralDistricts = "http://136.159.14.25:6080/arcgis/rest/services/Politik/Boundaries/MapServer"
             //, CanadaElectoralDistricts = "http://services1.arcgis.com/wQRV9oZpU2WABrts/arcgis/rest/services/Canada_CSD/FeatureServer"
             , CanadaPopulationDensity = "http://maps.esri.ca/arcgis/rest/services/StatsServices/PopulationDensity/MapServer/"
-            , WorldBoundariesAndPlacesLabels = "http://beastwin.marinhomoreira.com:9999/ArcGIS/rest/services/SkiAreas/MapServer"
+            //, WorldBoundariesAndPlacesLabels = "http://beastwin.marinhomoreira.com:9999/ArcGIS/rest/services/SkiAreas/MapServer"
             ;
 
         Dictionary<LensType, string> UrlDic = new Dictionary<LensType, string>() {

@@ -690,7 +690,7 @@ namespace ODTablet
             DetailWindow.Title = "Overview";
             ClearUI();
             CurrentLens = LensType.Basemap;
-            DisplayOverviewMenu();
+            //DisplayOverviewMenu();
             ConfigureMaps();
             DisplayBaseMap();
             DisplayViewFinders();
@@ -815,6 +815,7 @@ namespace ODTablet
         void LensMap_Loaded(object sender, RoutedEventArgs e)
         {
             BroadcastCurrentExtent();
+            UpdateAllLensAccordingCurrentModeExtent();
         }
 
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 

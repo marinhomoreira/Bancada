@@ -17,6 +17,7 @@ using ESRI.ArcGIS.Client;
 using ODTablet.MapModel;
 using ODTablet.LensViewFinder;
 using SOD_CS_Library;
+using System.Threading;
 
 namespace ODTablet
 {
@@ -394,7 +395,9 @@ namespace ODTablet
             {
                 ActivateLens();
             }
-            //BroadcastCurrentExtent(); // TODO
+            UpdateAllLensAccordingCurrentModeExtent();
+            StartRefreshMaps();
+            BroadcastCurrentExtent();
         }
 
         private void InitialState_Click(object sender, RoutedEventArgs e)
@@ -463,8 +466,7 @@ namespace ODTablet
                 LensMap.Loaded += LensMap_Loaded;
             }
         }
-
-
+        
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
             try
@@ -649,7 +651,8 @@ namespace ODTablet
                     if (Board.ViewFindersOf(CurrentLens).ContainsKey(type))
                     {
                         // PERFORMANCE: IT'S FASTER DOING THIS THAN WITH THE EVENT.
-                        ((MapViewFinder)LayoutRoot.Children[i]).UpdateExtent(Board.ViewFindersOf(CurrentLens)[type].Extent.ToString());
+                        String ext = Board.ViewFindersOf(CurrentLens)[type].Extent.ToString();
+                        ((MapViewFinder)LayoutRoot.Children[i]).UpdateExtent(ext);
                         if (Grid.GetZIndex(LayoutRoot.Children[i]) != Board.ZUIIndexOf(type))
                         {
                             Grid.SetZIndex(LayoutRoot.Children[i], Board.ZUIIndexOf(type));
@@ -690,7 +693,7 @@ namespace ODTablet
             DetailWindow.Title = "Overview";
             ClearUI();
             CurrentLens = LensType.Basemap;
-            //DisplayOverviewMenu();
+            DisplayOverviewMenu();
             ConfigureMaps();
             DisplayBaseMap();
             DisplayViewFinders();
@@ -815,7 +818,6 @@ namespace ODTablet
         void LensMap_Loaded(object sender, RoutedEventArgs e)
         {
             BroadcastCurrentExtent();
-            UpdateAllLensAccordingCurrentModeExtent();
         }
 
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
@@ -998,8 +1000,38 @@ namespace ODTablet
 
         # endregion
 
-        
 
+        private System.Timers.Timer t = new System.Timers.Timer(1000);
+        int counter = 0;
+        private void StartRefreshMaps()
+        {
+            // Initial state: Update the screen considering there's nobody in the perimeter.
+            t.Elapsed += new System.Timers.ElapsedEventHandler(
+                (object sender, System.Timers.ElapsedEventArgs e) =>
+                {
+                    if (counter <= 2)
+                    {
+                        this.Dispatcher.Invoke((Action)(() =>
+                        {
+
+                            RefreshMaps();
+                            counter++;
+                        }));
+                    }
+                    else
+                    {
+                        t.Stop();
+                        counter = 0;
+                    }
+                });
+            t.AutoReset = true;
+            t.Start();
+        }
+       
+        private void StopRefreshMaps()
+        {
+            t.Stop();
+        }
         
 
         

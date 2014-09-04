@@ -717,13 +717,17 @@ namespace ODTablet
             Console.WriteLine("Activating " + CurrentLens);
             CurrentLensIsActive = true;
             // Make UI available
+            LayoutRoot.Children.Remove(DeactivatedLens);
             this.LensMap.IsHitTestVisible = true;
             Board.GetLens(CurrentLens).Extent = this.BasemapMap.Extent;
             Board.BringToFront(CurrentLens); // TODO : is this really OK?
             DisplayBackOffMenu();
             LensMap.Opacity = 1;
             BroadcastCurrentExtent();
+            
         }
+
+        Label DeactivatedLens;
 
         public void DeactivateLens()
         {
@@ -734,6 +738,13 @@ namespace ODTablet
             Board.RemoveLens(CurrentLens);
             DisplayBackOffMenu();
             LensMap.Opacity = 0.5;
+            DeactivatedLens = new Label();
+            DeactivatedLens.Content = "PRESS ACTIVATE TO INTERACT.";
+            DeactivatedLens.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            DeactivatedLens.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            DeactivatedLens.FontWeight = FontWeights.Bold;
+            DeactivatedLens.FontSize = 60;
+            LayoutRoot.Children.Add(DeactivatedLens);
         }
 
         # endregion

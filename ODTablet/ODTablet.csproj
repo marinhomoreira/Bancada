@@ -90,11 +90,19 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Page Include="MapBoardUI\MapBoardUC.xaml">
+      <SubType>Designer</SubType>
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MapBoardUI\MapBoardUC.xaml.cs">
+      <DependentUpon>MapBoardUC.xaml</DependentUpon>
+    </Compile>
     <Compile Include="MapModel\LensFactory.cs" />
     <Compile Include="MapModel\LensMode.cs" />
     <Compile Include="MapModel\MapBoard.cs" />
+    <Compile Include="ModesUI\Mode.cs" />
     <Compile Include="Properties\AssemblyInfo.cs">
       <SubType>Code</SubType>
     </Compile>

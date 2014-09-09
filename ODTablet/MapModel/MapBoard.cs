@@ -25,7 +25,7 @@ namespace ODTablet.MapModel
         }
     }
 
-    class MapBoard
+    public class MapBoard
     {
         private Dictionary<LensType, Lens> _lensCollection;
 
@@ -41,7 +41,7 @@ namespace ODTablet.MapModel
         {
             _lensCollection = new Dictionary<LensType, Lens>();
             lensStack = new List<LensType>();
-            lensStack.Add(LensType.Basemap);
+            StartLens(LensType.Basemap);
         }
         
         # region Update Lens
@@ -223,6 +223,14 @@ namespace ODTablet.MapModel
             return _lensCollection[lens];
         }
 
+        public void StartLens(LensType lens)
+        {
+            if (!LensIsActive(lens))
+            {
+                UpdateLens(lens, null, null);
+            }
+        }
+
         public Dictionary<LensType, Lens> ViewFindersOnTopOf(LensType lens)
         {
             Dictionary<LensType, Lens> vfal = new Dictionary<LensType,Lens>();
@@ -290,7 +298,7 @@ namespace ODTablet.MapModel
             }
             catch (Exception e)
             {
-                Console.WriteLine("Invalid lens: " + lens + " " + e.Message);
+                Console.WriteLine("Invalid _currentLens: " + lens + " " + e.Message);
                 return System.Windows.Media.Colors.Red;
             }
         }
@@ -335,7 +343,7 @@ namespace ODTablet.MapModel
             }
             catch (Exception e)
             {
-                Console.WriteLine("Invalid lens: " + lens + " " + e.Message);
+                Console.WriteLine("Invalid _currentLens: " + lens + " " + e.Message);
                 return false;
             }
         }
@@ -360,7 +368,7 @@ namespace ODTablet.MapModel
             }
             catch (Exception e)
             {
-                Console.WriteLine("Invalid lens: " + lens + " " + e.Message);
+                Console.WriteLine("Invalid _currentLens: " + lens + " " + e.Message);
                 return false;
             }
         }

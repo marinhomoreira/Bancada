@@ -25,7 +25,7 @@ namespace ODTablet.MapModel
         {
             get { return new LayerCollection() { MapLayer }; }
         }
-
+        
         public Envelope Extent
         {
             get { return _extent; }

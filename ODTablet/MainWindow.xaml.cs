@@ -467,7 +467,7 @@ namespace ODTablet
         # endregion
 
         # region Events
-        // TODO: Modularize Insects!
+        // TODO: Modularize Insects logic!
         void Board_LensStackPositionChanged(object sender, LensEventArgs e)
         {
             if (MainBoardUC != null)
@@ -542,13 +542,14 @@ namespace ODTablet
             {
                 MapBoardUC mbuc = new MapBoardUC(e.ModifiedLens, (MapBoard)sender);
                 mbuc.Name = e.ModifiedLens.ToString();
-                mbuc.Width = 1920 / 5;
-                mbuc.Height = 1080 / 5;
+                mbuc.Width = 2160 / 4;
+                mbuc.Height = 1440 / 4;
                 //mbuc.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
                 //mbuc.VerticalAlignment = System.Windows.VerticalAlignment.Top;
                 mbuc.PassiveMode = true;
                 mbuc.BorderBrush = new SolidColorBrush(MapBoard.GetColorOf(e.ModifiedLens));
-                mbuc.BorderThickness = new Thickness(5.0);
+                mbuc.BorderThickness = new Thickness(3.0);
+                mbuc.Margin = new Thickness(2.0);
                 Canvas.SetZIndex(mbuc, 99);
                 InsectStack.Children.Add(mbuc);
             }

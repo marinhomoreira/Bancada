@@ -36,11 +36,7 @@ namespace ODTablet
             InitializeComponent();
             //DisplayStartMenu();
 
-            Board = new MapBoard();
-            Board.LensAdded += Board_LensAdded;
-            Board.LensExtentUpdated += Board_LensExtentUpdated;
-            Board.LensRemoved += Board_LensRemoved;
-            Board.LensStackPositionChanged += Board_LensStackPositionChanged;
+            ConfigureBoard();
 
             //CurrentAppMode = MapBoardMode.MultipleLenses;
             //LoadMultipleLensMode();
@@ -53,6 +49,16 @@ namespace ODTablet
             ConfigureDevice();
             RegisterSoDEvents();
 
+        }
+
+
+        private void ConfigureBoard()
+        {
+            Board = new MapBoard();
+            Board.LensAdded += Board_LensAdded;
+            Board.LensExtentUpdated += Board_LensExtentUpdated;
+            Board.LensRemoved += Board_LensRemoved;
+            Board.LensStackPositionChanged += Board_LensStackPositionChanged;
         }
 
 
@@ -193,8 +199,66 @@ namespace ODTablet
             LayoutRoot.Children.Add(MainBoardUC);
 
             RefreshInsectStack();
-            //TODO: Display menu
+            
+            DisplayOverviewMenu();
+
         }
+
+
+        private StackPanel OverviewMenu;
+
+        private void ConfigureOverviewMenu()
+        {
+            OverviewMenu = new StackPanel()
+            {
+                Name = "Overview",
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
+                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                Orientation = Orientation.Horizontal,
+            };
+
+            OverviewMenu.Children.Add(CreateRegularButton("Reset", Reset_Click));
+            OverviewMenu.Children.Add(CreateRegularButton("Refresh", RefreshOverview_Click));
+        }
+
+        private void Reset_Click(object sender, RoutedEventArgs e)
+        {
+            Reset();
+        }
+
+        private void Reset()
+        {
+            ConfigureBoard();
+            LoadMode(CurrentAppMode);
+        }
+
+        private void DisplayOverviewMenu()
+        {
+            ConfigureOverviewMenu();
+            Canvas.SetZIndex(OverviewMenu, 99);
+            if (!LayoutRoot.Children.Contains(OverviewMenu))
+            {
+                LayoutRoot.Children.Add(OverviewMenu);
+            }
+        }
+
+        private void RefreshOverview_Click(object sender, RoutedEventArgs e)
+        {
+            LoadOverviewMode();
+        }
+
+        private Button CreateRegularButton(string content, RoutedEventHandler reh)
+        {
+            Button b = new Button();
+            b.Content = content;
+            b.Width = 100;
+            b.Height = 50;
+            b.Click += reh;
+            b.BorderBrush = Brushes.Black;
+            b.Background = Brushes.White;
+            return b;
+        }
+
 
 
         # endregion
@@ -283,12 +347,19 @@ namespace ODTablet
 
         private void RemoveLensFromInsectStack(LensType lens, MapBoard board)
         {
+            if(lens == LensType.All)
+            {
+                RemoveAllInsects();
+                return;
+            }
+
             for (int i = 0; i < InsectStack.Children.Count; i++)
             {
                 if (InsectStack.Children[i] is MapBoardUC)
                 {
                     if (((MapBoardUC)(InsectStack.Children[i])).CurrentLens.Equals(lens))
                     {
+                        ((MapBoardUC)InsectStack.Children[i]).ClearUI();
                         InsectStack.Children.RemoveAt(i);
                     }
                     else

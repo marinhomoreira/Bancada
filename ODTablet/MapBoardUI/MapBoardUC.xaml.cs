@@ -183,8 +183,11 @@ namespace ODTablet.MapBoardUI
 
         public void Deactivate()
         {
-            this.LensMap.IsHitTestVisible = false;
-            LensMap.Opacity = 0.3;
+            if(this.LensMap != null)
+            {
+                this.LensMap.IsHitTestVisible = false;
+                LensMap.Opacity = 0.3;
+            }
             DeactivatedLens = new Label();
             DeactivatedLens.Content = "INACTIVE.\nPRESS ACTIVATE.";
             DeactivatedLens.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;

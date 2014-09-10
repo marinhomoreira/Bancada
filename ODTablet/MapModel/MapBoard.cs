@@ -319,9 +319,6 @@ namespace ODTablet.MapModel
         }
 
 
-
-
-
         public bool RemoveLens(LensType lens)
         {
             if (LensIsActive(lens))

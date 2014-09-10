@@ -547,6 +547,8 @@ namespace ODTablet
                 //mbuc.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
                 //mbuc.VerticalAlignment = System.Windows.VerticalAlignment.Top;
                 mbuc.PassiveMode = true;
+                mbuc.BorderBrush = new SolidColorBrush(MapBoard.GetColorOf(e.ModifiedLens));
+                mbuc.BorderThickness = new Thickness(5.0);
                 Canvas.SetZIndex(mbuc, 99);
                 InsectStack.Children.Add(mbuc);
             }

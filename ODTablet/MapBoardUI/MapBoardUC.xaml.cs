@@ -52,6 +52,7 @@ namespace ODTablet.MapBoardUI
 
         private bool _passiveMode = false;
 
+        private Label DeactivatedLens;
         MapModifiedEventHandler temp;
         
         public bool PassiveMode
@@ -63,12 +64,19 @@ namespace ODTablet.MapBoardUI
                 {
                     temp = MapExtentUpdated;
                     MapExtentUpdated = null;
+                    if (LensMap != null)
+                    {
+                        LensMap.IsHitTestVisible = false;
+                    }
                 }
                 else
                 {
                     MapExtentUpdated = temp; // TODO: NEED TO TEST!
+                    if (LensMap != null)
+                    {
+                        LensMap.IsHitTestVisible = true;
+                    }
                 }
-                
             }
         }
 
@@ -91,7 +99,7 @@ namespace ODTablet.MapBoardUI
             _localBoard = board;
             LoadUI();
         }
-                
+
         public void AddViewFinder(LensType lens, MapBoard board)
         {
             _localBoard = board;
@@ -144,11 +152,11 @@ namespace ODTablet.MapBoardUI
             // TODO: Update stack box, if present.            
             if (_currentLens == lens)
             {
-                // TODO Deactivate?
+                Deactivate();
             }
             else if (lens == LensType.All)
             {
-                // TODO Deactivate?
+                Deactivate();
                 RemoveViewFinder(lens);
             }
             else if (lens != LensType.None)
@@ -159,11 +167,31 @@ namespace ODTablet.MapBoardUI
 
         public void ClearUI()
         {
-            Console.WriteLine("Resetting CurrentLens...");
+            //Console.WriteLine("Resetting CurrentLens...");
             _currentLens = LensType.None;
             if (LensMap != null) LensMap.Layers.Clear();
             if (BasemapMap != null) BasemapMap.Layers.Clear();
             MBRoot.Children.Clear();
+        }
+
+        public void Activate()
+        {
+            MBRoot.Children.Remove(DeactivatedLens);
+            this.LensMap.IsHitTestVisible = true;
+            LensMap.Opacity = 1;
+        }
+
+        public void Deactivate()
+        {
+            this.LensMap.IsHitTestVisible = false;
+            LensMap.Opacity = 0.3;
+            DeactivatedLens = new Label();
+            DeactivatedLens.Content = "INACTIVE.\nPRESS ACTIVATE.";
+            DeactivatedLens.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            DeactivatedLens.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            DeactivatedLens.FontWeight = FontWeights.Bold;
+            DeactivatedLens.FontSize = 60;
+            MBRoot.Children.Add(DeactivatedLens);
         }
 
         # endregion
@@ -202,12 +230,18 @@ namespace ODTablet.MapBoardUI
                     IsLogoVisible = false,
                     IsHitTestVisible = false,
                 };
+                BasemapMap.Loaded += BasemapMap_Loaded;
             }
+        }
+
+        private void BasemapMap_Loaded(object sender, RoutedEventArgs e)
+        {
+            ResetBoard(_localBoard); // I HAVE NO IDEA WHY, BUT IT ONLY WORKS THIS WAY.
         }
 
         private void DisplayBaseMap()
         {
-            Console.WriteLine("Displaying basemap...");
+            //Console.WriteLine("Displaying basemap...");
             Lens basem = _localBoard.GetLens(LensType.Basemap);
             BasemapMap.Layers.Add(MapBoard.GenerateMapLayerCollection(LensType.Basemap)[0]);
             BasemapMap.Extent = basem.Extent;
@@ -241,10 +275,7 @@ namespace ODTablet.MapBoardUI
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
-            //if (!_passiveMode)
-            //{
-                OnMapExtentChanged(new MapEventArgs(_currentLens, e.NewExtent));
-            //}
+            OnMapExtentChanged(new MapEventArgs(_currentLens, e.NewExtent));
             try
             {
                 BasemapMap.Extent = e.NewExtent;
@@ -258,20 +289,16 @@ namespace ODTablet.MapBoardUI
 
         void LensMap_Loaded(object sender, RoutedEventArgs e)
         {
-            ResetBoard(_localBoard); // I HAVE NO IDEA WHY, BUT IT ONLY WORKS THIS WAY.
-            if (!_passiveMode)
-            {
-                OnMapExtentChanged(new MapEventArgs(_currentLens, LensMap.Extent));
-            }
-            
+            //ResetBoard(_localBoard); // I HAVE NO IDEA WHY, BUT IT ONLY WORKS THIS WAY.
+            OnMapExtentChanged(new MapEventArgs(_currentLens, LensMap.Extent));
         }
 
         private void DisplayLensMap()
         {
-            Console.WriteLine("Displaying " + _currentLens + " lens...");
+            //Console.WriteLine("Displaying " + _currentLens + " lens...");
 
             Lens LensToBeDisplayed = _localBoard.GetLens(_currentLens);
-            LensMap.Layers.Add(LensToBeDisplayed.MapLayer); // TODO: NEW LAYER? MapBoard.GenerateMapLayerCollection(_currentLens)[0]
+            LensMap.Layers.Add(MapBoard.GenerateMapLayerCollection(_currentLens)[0]); // LensToBeDisplayed.MapLayer
             LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 }; // TODO: remove this!
             LensMap.Extent = LensToBeDisplayed.Extent;
 
@@ -325,7 +352,7 @@ namespace ODTablet.MapBoardUI
         {
             if (!ViewFinderExistsOnUI(lens))
             {
-                Console.WriteLine("Adding " + lens + " viewfinder...");
+                //Console.WriteLine("Adding " + lens + " viewfinder...");
                 Lens viewfinder = _localBoard.GetLens(lens);
                 MapViewFinder mvf = new MapViewFinder(viewfinder.Color, viewfinder.Extent)
                 {

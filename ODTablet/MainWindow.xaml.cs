@@ -55,16 +55,6 @@ namespace ODTablet
 
         }
 
-        # region MainBoardUserControl
-        MapBoardUC MainBoardUC;
-        void MBUC_ExtentUpdated(object sender, MapEventArgs e)
-        {
-            Board.GetLens(e.ModifiedLens).Extent = e.Extent;
-            //Console.WriteLine("Broadcasting {0}, {1}", e.ModifiedLens, e.Extent);
-            BroadcastExtent(e.ModifiedLens, e.Extent);
-        }
-        # endregion
-
 
         # region Mode Selection
         private void LoadMode(MapBoardMode currentAppMode)
@@ -160,10 +150,12 @@ namespace ODTablet
         private void BuildSingleLensUI(LensType lens)
         {
             ClearUI();
-            StartLensUC(lens);
+            InitializeMainBoardWith(lens);
+            //TODO: Display Menu
         }
 
         # endregion
+
 
         # region MultipleLensMode
         private void LoadMultipleLensMode()
@@ -176,11 +168,13 @@ namespace ODTablet
         private void BuildMultipleLensUI(LensType lens)
         {
             ClearUI();
-            StartLensUC(lens);
+            InitializeMainBoardWith(lens);
             DisplayLensSelectionMenu();
+            //TODO: Display Menu
         }
 
         # endregion
+
 
         # region OverviewMode
         
@@ -190,26 +184,34 @@ namespace ODTablet
         {
             DetailWindow.Title = "Overview";
             ClearUI();
-            //StartLensUC(LensType.Basemap);
+            BuildOverviewUI();
+        }
+
+        private void BuildOverviewUI()
+        {
             MainBoardUC = new MapBoardUC(LensType.Basemap, Board);
             LayoutRoot.Children.Add(MainBoardUC);
 
-            InsectStack = new StackPanel()
-            {
-                Name = "InsectStack",
-            };
-            InsectStack.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-            InsectStack.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-            InsectStack.Orientation = Orientation.Horizontal;
-            Canvas.SetZIndex(InsectStack, 99);
-            LayoutRoot.Children.Add(InsectStack);
+            RefreshInsectStack();
+            //TODO: Display menu
         }
-
 
 
         # endregion
 
-        private void StartLensUC(LensType lens)
+
+
+        # region MainBoardUserControl
+
+        MapBoardUC MainBoardUC;
+        void MBUC_ExtentUpdated(object sender, MapEventArgs e)
+        {
+            Board.GetLens(e.ModifiedLens).Extent = e.Extent;
+            //Console.WriteLine("Broadcasting {0}, {1}", e.ModifiedLens, e.Extent);
+            BroadcastExtent(e.ModifiedLens, e.Extent);
+        }
+
+        private void InitializeMainBoardWith(LensType lens)
         {
             Board.StartLens(lens);
             MainBoardUC = new MapBoardUC(lens, Board);
@@ -217,8 +219,117 @@ namespace ODTablet
             LayoutRoot.Children.Add(MainBoardUC);
         }
 
+        # endregion
 
-        # region Lens Operations
+
+        #region InsectStack
+        // TODO Draw lines connecting lens-insect
+        private void ConfigureInsectStack()
+        {
+            if (InsectStack == null)
+            {
+                InsectStack = new StackPanel()
+                {
+                    Name = "InsectStack",
+                };
+                InsectStack.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                InsectStack.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                InsectStack.Orientation = Orientation.Horizontal;
+                Canvas.SetZIndex(InsectStack, 99);
+            }
+        }
+
+        private void RefreshInsectStack()
+        {
+            ConfigureInsectStack();
+
+            RemoveAllInsects();
+
+            foreach (LensType lens in Board.LensStack)
+            {
+                if (lens != LensType.Basemap)
+                    AddToInsectStack(lens, Board);
+            }
+            if (!LayoutRoot.Children.Contains(InsectStack))
+                LayoutRoot.Children.Add(InsectStack);
+        }
+
+        private void AddToInsectStack(LensType lens, MapBoard board)
+        {
+            MapBoardUC mbuc = new MapBoardUC(lens, board);
+            mbuc.Name = lens.ToString();
+            mbuc.Width = 2160 / 4;
+            mbuc.Height = 1440 / 4;
+            //mbuc.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            //mbuc.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+            mbuc.PassiveMode = true;
+            mbuc.BorderBrush = new SolidColorBrush(MapBoard.GetColorOf(lens));
+            mbuc.BorderThickness = new Thickness(3.0);
+            mbuc.Margin = new Thickness(2.0);
+            Canvas.SetZIndex(mbuc, 99);
+            InsectStack.Children.Add(mbuc);
+        }
+
+        private void UpdateExtentAtInsectStack(LensType lens, MapBoard board)
+        {
+            for (int i = 0; i < InsectStack.Children.Count; i++)
+            {
+                if (InsectStack.Children[i] is MapBoardUC)
+                {
+                    ((MapBoardUC)InsectStack.Children[i]).UpdateExtentOf(lens, board);
+                }
+            }
+        }
+
+        private void RemoveLensFromInsectStack(LensType lens, MapBoard board)
+        {
+            for (int i = 0; i < InsectStack.Children.Count; i++)
+            {
+                if (InsectStack.Children[i] is MapBoardUC)
+                {
+                    if (((MapBoardUC)(InsectStack.Children[i])).CurrentLens.Equals(lens))
+                    {
+                        InsectStack.Children.RemoveAt(i);
+                    }
+                    else
+                    {
+                        ((MapBoardUC)InsectStack.Children[i]).Remove(lens, board);
+                    }
+
+                }
+            }
+        }
+
+        private void UpdateZAtInsectStack(LensType lens, MapBoard board)
+        {
+            for (int i = 0; i < InsectStack.Children.Count; i++)
+            {
+                if (InsectStack.Children[i] is MapBoardUC)
+                {
+                    ((MapBoardUC)InsectStack.Children[i]).UpdateZOf(lens, board);
+                }
+            }
+        }
+
+        private void RemoveAllInsects()
+        {
+            if (InsectStack != null)
+            {
+                for (int i = 0; i < InsectStack.Children.Count; i++)
+                {
+                    if (InsectStack.Children[i] is MapBoardUC)
+                    {
+                        ((MapBoardUC)InsectStack.Children[i]).ClearUI();
+                    }
+                }
+                InsectStack.Children.Clear();
+            }
+        }
+
+        #endregion
+
+
+        # region Operations with Lenses
         private void LoadLens(LensType lens)
         {
             switch (CurrentAppMode)
@@ -233,10 +344,6 @@ namespace ODTablet
                     break;
             }
         }
-
-
-
-
 
         # region Lens Selection Menu
         private StackPanel LensSelectionMenu;
@@ -267,6 +374,7 @@ namespace ODTablet
             LensSelectionMenu.Children.Add(CreateLensButton(LensType.ElectoralDistricts.ToString(), LensSelectionButton_Click));
             LensSelectionMenu.Children.Add(CreateLensButton(LensType.Cities.ToString(), LensSelectionButton_Click));
         }
+
         private void LensSelectionButton_Click(object sender, RoutedEventArgs e)
         {
             LoadLens(MapBoard.StringToLensType(((Button)sender).Name));
@@ -299,12 +407,6 @@ namespace ODTablet
 
         # endregion
 
-
-
-
-
-
-
         # region Activate/Deactivate Lens
 
 
@@ -315,10 +417,78 @@ namespace ODTablet
 
 
 
+        # region Board Event Handlers
+        void Board_LensStackPositionChanged(object sender, LensEventArgs e)
+        {
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.UpdateZOf(e.ModifiedLens, (MapBoard)sender);
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    UpdateZAtInsectStack(e.ModifiedLens, (MapBoard)sender);
+                }
+            }
+        }
+
+        void Board_LensRemoved(object sender, LensEventArgs e)
+        {
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.Remove(e.ModifiedLens, (MapBoard)sender);
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    RemoveLensFromInsectStack(e.ModifiedLens, (MapBoard)sender);
+                }
+            }
+        }
+
+        void Board_LensExtentUpdated(object sender, LensEventArgs e)
+        {
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    UpdateExtentAtInsectStack(e.ModifiedLens, (MapBoard)sender);
+                }
+            }
+        }
+
+        void Board_LensAdded(object sender, LensEventArgs e)
+        {
+            // Modes... where? and so on...
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
+                
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    AddToInsectStack(e.ModifiedLens, (MapBoard)sender);
+                }
+            }
+        }
+
+        #endregion
+
+        
 
 
 
 
+        private void ClearUI()
+        {
+            RemoveAllInsects();
+
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
+            {
+                if (LayoutRoot.Children[i] is MapBoardUC)
+                {
+                    ((MapBoardUC)LayoutRoot.Children[i]).ClearUI();
+                    ((MapBoardUC)LayoutRoot.Children[i]).MapExtentUpdated -= MBUC_ExtentUpdated;
+                }
+            }
+            LayoutRoot.Children.Clear();
+        }
 
 
 
@@ -447,148 +617,30 @@ namespace ODTablet
 
             if (removeMode != null)
             {
-                LensType lens = MapBoard.StringToLensType(removeMode);
-                if (lens.Equals(LensType.All))
+                this.Dispatcher.Invoke((Action)(() =>
                 {
-                    //ResetApp(); //TODO
-                    return;
-                }
-                Board.RemoveLens(lens);
+                    LensType lens = MapBoard.StringToLensType(removeMode);
+                    if (lens.Equals(LensType.All))
+                    {
+                        //ResetApp(); //TODO
+                        return;
+                    }
+                    Board.RemoveLens(lens);
+                }));
             }
 
             //SYNCH
-            //if (tableConfiguration != null && tableConfiguration.Equals("All") && CurrentAppMode == MapBoardMode.None)
-            //{
-            //    Console.WriteLine("Dictionary with table config received!");
-            //    Board.ClearBoardAndStackLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
-            //}
+            if (tableConfiguration != null && tableConfiguration.Equals("All") && CurrentAppMode == MapBoardMode.None)
+            {
+                Console.WriteLine("Dictionary with table config received!");
+                Board.ClearBoardAndStackLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
+            }
         }
 
         # endregion
 
-        # region Events
-        // TODO: Modularize Insects logic!
-        void Board_LensStackPositionChanged(object sender, LensEventArgs e)
-        {
-            if (MainBoardUC != null)
-            {
-                MainBoardUC.UpdateZOf(e.ModifiedLens, (MapBoard)sender);
-                if (CurrentAppMode == MapBoardMode.Overview)
-                {
-                    for (int i = 0; i < InsectStack.Children.Count; i++)
-                    {
-                        if (InsectStack.Children[i] is MapBoardUC)
-                        {
-                            ((MapBoardUC)InsectStack.Children[i]).UpdateZOf(e.ModifiedLens, (MapBoard)sender);
-                        }
-                    }
-                }
-            }
-        }
-
-        void Board_LensRemoved(object sender, LensEventArgs e)
-        {
-            if (MainBoardUC != null)
-            {
-                MainBoardUC.Remove(e.ModifiedLens, (MapBoard)sender);
-                if (CurrentAppMode == MapBoardMode.Overview)
-                {
-                    for (int i = 0; i < InsectStack.Children.Count; i++)
-                    {
-                        if (InsectStack.Children[i] is MapBoardUC)
-                        {
-                            if (((MapBoardUC)(InsectStack.Children[i])).Equals(e.ModifiedLens.ToString()))
-                            {
-                                InsectStack.Children.RemoveAt(i);
-                            }
-                            else
-                            {
-                                ((MapBoardUC)InsectStack.Children[i]).Remove(e.ModifiedLens, (MapBoard)sender);
-                            }
-                            
-                        }
-                    }
-                }
-            }
-        }
-
-        void Board_LensExtentUpdated(object sender, LensEventArgs e)
-        {
-            if (MainBoardUC != null)
-            {
-                MainBoardUC.UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
-                if (CurrentAppMode == MapBoardMode.Overview)
-                {
-                    for (int i = 0; i < InsectStack.Children.Count; i++)
-                    {
-                        if (InsectStack.Children[i] is MapBoardUC)
-                        {
-                            ((MapBoardUC)InsectStack.Children[i]).UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
-                        }
-                    }
-                }
-            }
-        }
-
-        void Board_LensAdded(object sender, LensEventArgs e)
-        {
-            // Modes... where? and so on...
-            if (MainBoardUC != null)
-            {
-                MainBoardUC.UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
-            }
-
-            if (CurrentAppMode == MapBoardMode.Overview)
-            {
-                MapBoardUC mbuc = new MapBoardUC(e.ModifiedLens, (MapBoard)sender);
-                mbuc.Name = e.ModifiedLens.ToString();
-                mbuc.Width = 2160 / 4;
-                mbuc.Height = 1440 / 4;
-                //mbuc.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                //mbuc.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-                mbuc.PassiveMode = true;
-                mbuc.BorderBrush = new SolidColorBrush(MapBoard.GetColorOf(e.ModifiedLens));
-                mbuc.BorderThickness = new Thickness(3.0);
-                mbuc.Margin = new Thickness(2.0);
-                Canvas.SetZIndex(mbuc, 99);
-                InsectStack.Children.Add(mbuc);
-            }
-        }
 
 
-        #endregion
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        private void ClearUI()
-        {
-            // TODO: Remove layers from user controls (<UC>.ClearUI())
-            for (int i = 0; i < LayoutRoot.Children.Count; i++)
-            {
-                if (LayoutRoot.Children[i] is MapBoardUC)
-                {
-                    ((MapBoardUC)LayoutRoot.Children[i]).ClearUI();
-                    ((MapBoardUC)LayoutRoot.Children[i]).MapExtentUpdated -= MBUC_ExtentUpdated;
-                }
-            }
-            LayoutRoot.Children.Clear();
-        }
 
 
 
@@ -597,15 +649,21 @@ namespace ODTablet
         {
             switch (e.Key)
             {
-                case Key.F2:
+                case Key.P:
+                    LoadMode(MapBoardMode.Overview);
+                    break;
+                case Key.O:
+                    LoadMode(MapBoardMode.SingleLens);
+                    break;
+                case Key.I:
+                    LoadMode(MapBoardMode.MultipleLenses);
+                    break;
                 case Key.M:
                     DisplayStartMenu();
                     break;
-                case Key.F5:
                 case Key.R:
-                    //RefreshMaps();
                     MainBoardUC.ResetBoard(Board);
-                    //MainBoardUC.RefreshCurrentLens(Board);
+                    RefreshInsectStack();
                     break;
                 case Key.C:
                     //if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)

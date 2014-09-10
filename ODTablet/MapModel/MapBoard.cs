@@ -35,12 +35,17 @@ namespace ODTablet.MapModel
         public event LensModifiedEventHandler LensCollectionChanged; // Not used.
         public event LensModifiedEventHandler LensStackPositionChanged;
 
-        private List<LensType> lensStack;
+        private List<LensType> _lensStack;
+
+        public List<LensType> LensStack
+        {
+            get { return _lensStack; }
+        }
 
         public MapBoard()
         {
             _lensCollection = new Dictionary<LensType, Lens>();
-            lensStack = new List<LensType>();
+            _lensStack = new List<LensType>();
             StartLens(LensType.Basemap);
         }
         
@@ -80,7 +85,7 @@ namespace ODTablet.MapModel
                 {
                     _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
                 }
-                lensStack.Add(lens);
+                _lensStack.Add(lens);
                 OnLensAdded(new LensEventArgs(lens));
             }
             else
@@ -127,38 +132,38 @@ namespace ODTablet.MapModel
         public void UpdateZIndex(LensType lens, int? zIndex)
         {
             // Basemap is always 0;
-            if (lens == LensType.Basemap && !lensStack.Contains(LensType.Basemap) && lensStack.IndexOf(LensType.Basemap) != 0)
+            if (lens == LensType.Basemap && !_lensStack.Contains(LensType.Basemap) && _lensStack.IndexOf(LensType.Basemap) != 0)
             {
-                lensStack.Remove(lens);
-                lensStack.Insert(0, lens);
+                _lensStack.Remove(lens);
+                _lensStack.Insert(0, lens);
                 OnLensStackPositionChanged(new LensEventArgs(lens));
                 return;
             }
 
             if (zIndex == null)
             {
-                if (!lensStack.Contains(lens))
+                if (!_lensStack.Contains(lens))
                 {
                     // No lens present and zIndex is null, just add to the stack.
-                    lensStack.Add(lens);
+                    _lensStack.Add(lens);
                     OnLensStackPositionChanged(new LensEventArgs(lens));
                 }
             }
             else
             {
-                if (!lensStack.Contains(lens))
+                if (!_lensStack.Contains(lens))
                 {
                     // zIndex is valid but the stack doesn't contain the given lens
-                    lensStack.Insert((int)zIndex, lens);
+                    _lensStack.Insert((int)zIndex, lens);
                     OnLensStackPositionChanged(new LensEventArgs(lens));
                 }
                 else
                 {
                     // zIndex is valid but the stack contains the given lens in a different position
-                    if (lensStack.IndexOf(lens) != (int)zIndex)
+                    if (_lensStack.IndexOf(lens) != (int)zIndex)
                     {
-                        lensStack.Remove(lens);
-                        lensStack.Insert((int)zIndex, lens);
+                        _lensStack.Remove(lens);
+                        _lensStack.Insert((int)zIndex, lens);
                         OnLensStackPositionChanged(new LensEventArgs(lens));
                     }
                 }
@@ -201,13 +206,13 @@ namespace ODTablet.MapModel
 
         public int ZUIIndexOf(LensType lens)
         {
-            return lensStack.IndexOf(lens);
+            return _lensStack.IndexOf(lens);
         }
 
 
         internal void BringToFront(LensType CurrentLens)
         {
-            lensStack.Remove(CurrentLens);
+            _lensStack.Remove(CurrentLens);
             UpdateZIndex(CurrentLens, (int?)null);
         }
 
@@ -308,7 +313,7 @@ namespace ODTablet.MapModel
             Dictionary<string, string> lensesDic = new Dictionary<string, string>();
             foreach (KeyValuePair<LensType, Lens> lens in _lensCollection)
             {
-                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString() +";"+ lensStack.IndexOf(lens.Key));
+                lensesDic.Add(lens.Key.ToString(), lens.Value.Extent.ToString() +";"+ _lensStack.IndexOf(lens.Key));
             }
             return lensesDic;
         }
@@ -322,12 +327,12 @@ namespace ODTablet.MapModel
             if (LensIsActive(lens))
             {
                 _lensCollection.Remove(lens);
-                lensStack.Remove(lens);
+                _lensStack.Remove(lens);
                 OnLensRemoved(new LensEventArgs(lens));
                 return true;
             } else if(lens == LensType.All)
             {
-                lensStack.Clear();
+                _lensStack.Clear();
                 _lensCollection.Clear();
                 OnLensRemoved(new LensEventArgs(LensType.All));
                 return true;

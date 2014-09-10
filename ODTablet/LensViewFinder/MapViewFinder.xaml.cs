@@ -35,6 +35,11 @@ namespace ODTablet.LensViewFinder
             UpdateWindow();
         }
 
+        public void Refresh()
+        {
+            UpdateWindow();
+        }
+
         #region UpdateExtent
         public void UpdateExtent(Envelope extent)
         {
@@ -111,11 +116,13 @@ namespace ODTablet.LensViewFinder
             Map mapOld = e.OldValue as Map;
             if (mapOld != null)
             {
+                //mapOld.ExtentChanging -= glass.Map_ExtentChanged;
                 mapOld.ExtentChanged -= glass.Map_ExtentChanged;
             }
             Map mapNew = e.NewValue as Map;
             if (mapNew != null)
             {
+                //mapNew.ExtentChanging += glass.Map_ExtentChanged;
                 mapNew.ExtentChanged += glass.Map_ExtentChanged;
             }
         }
@@ -143,11 +150,16 @@ namespace ODTablet.LensViewFinder
                     ResizeWindow(MapLensIntersectionExtent);
                     TranslateVF(MapLensIntersectionExtent);
                     this.VFMap.Extent = MapLensIntersectionExtent;
+                    this.Opacity = 1;
                 }
                 catch (InvalidOperationException e)
                 {
-                    Console.WriteLine("Invalid operation exception! FAIL: " + e.Message);
+                    //Console.WriteLine("Invalid operation exception! FAIL: " + e.Message);
                 }
+            }
+            else
+            {
+                this.Opacity = 0;
             }
         }
 

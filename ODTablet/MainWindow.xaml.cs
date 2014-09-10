@@ -18,6 +18,7 @@ using ODTablet.MapModel;
 using ODTablet.LensViewFinder;
 using SOD_CS_Library;
 using ODTablet.MapBoardUI;
+using ESRI.ArcGIS.Client.Geometry;
 
 namespace ODTablet
 {
@@ -41,25 +42,26 @@ namespace ODTablet
             Board.LensRemoved += Board_LensRemoved;
             Board.LensStackPositionChanged += Board_LensStackPositionChanged;
 
-            CurrentAppMode = MapBoardMode.MultipleLenses;
-            LoadMultipleLensMode();
-            Board.StartLens(LensType.Satellite);
+            //CurrentAppMode = MapBoardMode.MultipleLenses;
+            //LoadMultipleLensMode();
+            CurrentAppMode = MapBoardMode.Overview;
+            LoadOverviewMode();
+            //Board.StartLens(LensType.Satellite);
+            
             // SOD stuff
-            //ConfigureSoD();
-            //ConfigureDevice();
-            //RegisterSoDEvents();
+            ConfigureSoD();
+            ConfigureDevice();
+            RegisterSoDEvents();
 
         }
-
-
-
 
         # region MainBoardUserControl
         MapBoardUC MainBoardUC;
         void MBUC_ExtentUpdated(object sender, MapEventArgs e)
         {
             Board.GetLens(e.ModifiedLens).Extent = e.Extent;
-            //BroadcastExtent(e.ModifiedLens, e.Extent);
+            //Console.WriteLine("Broadcasting {0}, {1}", e.ModifiedLens, e.Extent);
+            BroadcastExtent(e.ModifiedLens, e.Extent);
         }
         # endregion
 
@@ -181,13 +183,26 @@ namespace ODTablet
         # endregion
 
         # region OverviewMode
+        
+        private StackPanel InsectStack;
+        
         private void LoadOverviewMode()
         {
             DetailWindow.Title = "Overview";
             ClearUI();
-            StartLensUC(LensType.Basemap);
-            //MainBoardUC = new MapBoardUC(LensType.Basemap, Board);
-            //LayoutRoot.Children.Add(MainBoardUC);
+            //StartLensUC(LensType.Basemap);
+            MainBoardUC = new MapBoardUC(LensType.Basemap, Board);
+            LayoutRoot.Children.Add(MainBoardUC);
+
+            InsectStack = new StackPanel()
+            {
+                Name = "InsectStack",
+            };
+            InsectStack.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            InsectStack.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+            InsectStack.Orientation = Orientation.Horizontal;
+            Canvas.SetZIndex(InsectStack, 99);
+            LayoutRoot.Children.Add(InsectStack);
         }
 
 
@@ -198,17 +213,9 @@ namespace ODTablet
         {
             Board.StartLens(lens);
             MainBoardUC = new MapBoardUC(lens, Board);
-            MainBoardUC.ExtentUpdated += MBUC_ExtentUpdated;
+            MainBoardUC.MapExtentUpdated += MBUC_ExtentUpdated;
             LayoutRoot.Children.Add(MainBoardUC);
         }
-
-
-        
-
-
-
-
-
 
 
         # region Lens Operations
@@ -225,17 +232,11 @@ namespace ODTablet
                 default:
                     break;
             }
-            // TODO Create correspondent MapBoardUserControl
-            //CurrentLens = lens;
-            //LoadBoardUI();
-            //if (!CurrentLensIsActive)
-            //{
-            //    ActivateLens();
-            //}
-            //UpdateAllLensAccordingCurrentModeExtent();
-            //StartRefreshMaps();
-            //BroadcastCurrentExtent();
         }
+
+
+
+
 
         # region Lens Selection Menu
         private StackPanel LensSelectionMenu;
@@ -349,7 +350,7 @@ namespace ODTablet
 
             // Name and ID of device - displayed in Locator
             // TODO: Future: possible to look for devices using name, instead of ID.
-            SoD.ownDevice.ID = "11";
+            SoD.ownDevice.ID = "1";
             SoD.ownDevice.name = "ODTablet";
         }
 
@@ -385,135 +386,172 @@ namespace ODTablet
         # endregion
 
         # region Remote I/O
-        private void BroadcastCurrentExtent()
+        private void BroadcastExtent(LensType lensT, Envelope extent)
         {
-            //try
-            //{
-            //    Dictionary<string, string> dict = new Dictionary<string, string>();
-            //    dict.Add("UpdateMode", CurrentLens.ToString());
-            //    Lens lens = Board.GetLens(CurrentLens);
-            //    dict.Add("Extent", lens.Extent.ToString());
-            //    SoD.SendDictionaryToDevices(dict, "all");
-            //}
-            //catch (Exception exception)
-            //{
-            //    Console.WriteLine("Problem while broadcasting: " + exception.Message);
-            //}
-
+            try
+            {
+                Dictionary<string, string> dict = new Dictionary<string, string>();
+                dict.Add("UpdateMode", lensT.ToString());
+                Lens lens = Board.GetLens(lensT);
+                dict.Add("Extent", lens.Extent.ToString());
+                SoD.SendDictionaryToDevices(dict, "all");
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine("Problem while broadcasting: " + exception.Message);
+            }
         }
 
-        private void SendRemoveLensModeMessage()
+        private void SendRemoveLensModeMessage(LensType lensT)
         {
-            //Dictionary<string, string> dict = new Dictionary<string, string>();
-            //dict.Add("RemoveMode", CurrentLens.ToString());
-            //SoD.SendDictionaryToDevices(dict, "all");
+            Console.WriteLine("Sending remove lensmodemsg");
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("RemoveMode", lensT.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
         }
 
         private void SendResetAppMessage()
         {
-            //Dictionary<string, string> dict = new Dictionary<string, string>();
-            //dict.Add("RemoveMode", LensType.All.ToString());
-            //SoD.SendDictionaryToDevices(dict, "all");
+            Dictionary<string, string> dict = new Dictionary<string, string>();
+            dict.Add("RemoveMode", LensType.All.ToString());
+            SoD.SendDictionaryToDevices(dict, "all");
         }
 
         private void SendMsgToGetActiveModesFromTable()
         {
-            //SoD.SendStringToDevices("GetAllModes", "all");
+            SoD.SendStringToDevices("GetAllModes", "all");
         }
 
         private void BroadcastAllActiveModes()
         {
-            //Dictionary<string, string> dic = Board.ActiveLensesToDictionary();
-            //dic.Add("TableActiveModes", "All");
-            //SoD.SendDictionaryToDevices(dic, "all");
+            Dictionary<string, string> dic = Board.ActiveLensesToDictionary();
+            dic.Add("TableActiveModes", "All");
+            SoD.SendDictionaryToDevices(dic, "all");
         }
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
-            //String extentString = (String)parsedMessage["data"]["data"]["Extent"];
-            //String updateMode = (String)parsedMessage["data"]["data"]["UpdateMode"];
-            //String removeMode = (String)parsedMessage["data"]["data"]["RemoveMode"];
-            //String tableConfiguration = (String)parsedMessage["data"]["data"]["TableActiveModes"];
+            String extentString = (String)parsedMessage["data"]["data"]["Extent"];
+            String updateMode = (String)parsedMessage["data"]["data"]["UpdateMode"];
+            String removeMode = (String)parsedMessage["data"]["data"]["RemoveMode"];
+            String tableConfiguration = (String)parsedMessage["data"]["data"]["TableActiveModes"];
 
+            if (updateMode != null)
+            {
+                this.Dispatcher.Invoke((Action)(() =>
+                {
+                    LensType lens = MapBoard.StringToLensType(updateMode);
+                    Board.UpdateLens(lens, extentString);
+                }));
+            }
+
+            if (removeMode != null)
+            {
+                LensType lens = MapBoard.StringToLensType(removeMode);
+                if (lens.Equals(LensType.All))
+                {
+                    //ResetApp(); //TODO
+                    return;
+                }
+                Board.RemoveLens(lens);
+            }
+
+            //SYNCH
             //if (tableConfiguration != null && tableConfiguration.Equals("All") && CurrentAppMode == MapBoardMode.None)
             //{
-            //    this.Dispatcher.Invoke((Action)(() =>
-            //    {
-            //        Console.WriteLine("Dictionary with table config received!");
-            //        Board.ClearBoardAndStackLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
-            //    }));
-            //}
-
-            //if (updateMode != null)// && !updateMode.Equals(CurrentLens.ToString()))
-            //{
-            //    this.Dispatcher.Invoke((Action)(() =>
-            //    {
-            //        LensType lens = MapBoard.StringToLensType(updateMode);
-            //        Board.UpdateLens(lens, extentString);
-            //    }));
-            //}
-
-            //if (removeMode != null && !removeMode.Equals(CurrentLens.ToString()))
-            //{
-            //    this.Dispatcher.Invoke((Action)(() =>
-            //    {
-            //        LensType lens = MapBoard.StringToLensType(removeMode);
-            //        if (lens.Equals(LensType.All))
-            //        {
-            //            ResetApp();
-            //            return;
-            //        }
-            //        Board.RemoveLens(lens);
-            //        RefreshMaps();
-            //    }));
+            //    Console.WriteLine("Dictionary with table config received!");
+            //    Board.ClearBoardAndStackLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
             //}
         }
 
         # endregion
 
         # region Events
+        // TODO: Modularize Insects!
         void Board_LensStackPositionChanged(object sender, LensEventArgs e)
         {
-            //LensType lens = e.ModifiedLens;
-            //UpdateZPositionOf(lens);
-
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.UpdateZOf(e.ModifiedLens, (MapBoard)sender);
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    for (int i = 0; i < InsectStack.Children.Count; i++)
+                    {
+                        if (InsectStack.Children[i] is MapBoardUC)
+                        {
+                            ((MapBoardUC)InsectStack.Children[i]).UpdateZOf(e.ModifiedLens, (MapBoard)sender);
+                        }
+                    }
+                }
+            }
         }
 
         void Board_LensRemoved(object sender, LensEventArgs e)
         {
-
-            //LensType lens = e.ModifiedLens;
-            //if (CurrentLens != lens && CurrentLens != LensType.None)
-            //{
-            //    RemoveFromUI(lens);
-            //}
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.Remove(e.ModifiedLens, (MapBoard)sender);
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    for (int i = 0; i < InsectStack.Children.Count; i++)
+                    {
+                        if (InsectStack.Children[i] is MapBoardUC)
+                        {
+                            if (((MapBoardUC)(InsectStack.Children[i])).Equals(e.ModifiedLens.ToString()))
+                            {
+                                InsectStack.Children.RemoveAt(i);
+                            }
+                            else
+                            {
+                                ((MapBoardUC)InsectStack.Children[i]).Remove(e.ModifiedLens, (MapBoard)sender);
+                            }
+                            
+                        }
+                    }
+                }
+            }
         }
 
         void Board_LensExtentUpdated(object sender, LensEventArgs e)
         {
-
-            //LensType lens = e.ModifiedLens;
-            //if (CurrentLens != lens && CurrentLens != LensType.None)
-            //{
-            //    UpdateUIExtentOf(lens);
-            //}
-
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
+                if (CurrentAppMode == MapBoardMode.Overview)
+                {
+                    for (int i = 0; i < InsectStack.Children.Count; i++)
+                    {
+                        if (InsectStack.Children[i] is MapBoardUC)
+                        {
+                            ((MapBoardUC)InsectStack.Children[i]).UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
+                        }
+                    }
+                }
+            }
         }
 
         void Board_LensAdded(object sender, LensEventArgs e)
         {
-            //LensType lens = e.ModifiedLens;
-            //if (CurrentLens != lens && CurrentLens != LensType.None)
-            //{
-            //    AddViewFinderToScreen(lens);
-            //}
-            //Console.WriteLine("MEEEEEEEEEEEEHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH!!!!!!!!!!!!!!");
+            // Modes... where? and so on...
+            if (MainBoardUC != null)
+            {
+                MainBoardUC.UpdateExtentOf(e.ModifiedLens, (MapBoard)sender);
+            }
+
+            if (CurrentAppMode == MapBoardMode.Overview)
+            {
+                MapBoardUC mbuc = new MapBoardUC(e.ModifiedLens, (MapBoard)sender);
+                mbuc.Name = e.ModifiedLens.ToString();
+                mbuc.Width = 1920 / 5;
+                mbuc.Height = 1080 / 5;
+                //mbuc.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                //mbuc.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                mbuc.PassiveMode = true;
+                Canvas.SetZIndex(mbuc, 99);
+                InsectStack.Children.Add(mbuc);
+            }
         }
 
-        void LensMap_Loaded(object sender, RoutedEventArgs e)
-        {
-            //BroadcastCurrentExtent();
-        }
 
         #endregion
 
@@ -543,7 +581,7 @@ namespace ODTablet
                 if (LayoutRoot.Children[i] is MapBoardUC)
                 {
                     ((MapBoardUC)LayoutRoot.Children[i]).ClearUI();
-                    ((MapBoardUC)LayoutRoot.Children[i]).ExtentUpdated -= MBUC_ExtentUpdated;
+                    ((MapBoardUC)LayoutRoot.Children[i]).MapExtentUpdated -= MBUC_ExtentUpdated;
                 }
             }
             LayoutRoot.Children.Clear();

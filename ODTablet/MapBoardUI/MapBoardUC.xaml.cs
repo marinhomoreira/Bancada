@@ -41,7 +41,7 @@ namespace ODTablet.MapBoardUI
     /// </summary>
     public partial class MapBoardUC : UserControl
     {
-        public event MapModifiedEventHandler ExtentUpdated;
+        public event MapModifiedEventHandler MapExtentUpdated;
         
         private LensType _currentLens = LensType.None;
         
@@ -50,8 +50,29 @@ namespace ODTablet.MapBoardUI
             get { return _currentLens; }
         }
 
-        private MapBoard _localBoard;
+        private bool _passiveMode = false;
 
+        MapModifiedEventHandler temp;
+        
+        public bool PassiveMode
+        {
+            get { return _passiveMode; }
+            set {
+                _passiveMode = value;
+                if(value)
+                {
+                    temp = MapExtentUpdated;
+                    MapExtentUpdated = null;
+                }
+                else
+                {
+                    MapExtentUpdated = temp; // TODO: NEED TO TEST!
+                }
+                
+            }
+        }
+
+        private MapBoard _localBoard;
 
         # region Interface
         public MapBoardUC(LensType lens, MapBoard board)
@@ -70,8 +91,72 @@ namespace ODTablet.MapBoardUI
             _localBoard = board;
             LoadUI();
         }
-        
-        
+                
+        public void AddViewFinder(LensType lens, MapBoard board)
+        {
+            _localBoard = board;
+            AddViewFinderToScreen(lens);
+        }
+
+        public void UpdateExtentOf(LensType lens, MapBoard board)
+        {
+            _localBoard = board;
+            
+            if (_currentLens == lens)
+            {
+                LensMap.Extent = _localBoard.GetLens(lens).Extent;
+            }
+            else if (lens == LensType.All)
+            {
+                LensMap.Extent = _localBoard.GetLens(lens).Extent;
+                UpdateViewFinderExtent(lens);
+            }
+            else if (lens != LensType.None)
+            {
+                UpdateViewFinderExtent(lens);
+            }
+        }
+
+        public void UpdateZOf(LensType lens, MapBoard board)
+        {
+            _localBoard = board;
+            
+            // TODO: Update stack box, if present.
+            if (_currentLens == lens)
+            {
+                Grid.SetZIndex(LensMap, board.ZUIIndexOf(lens));
+            }
+            else if (lens == LensType.All)
+            {
+                Grid.SetZIndex(LensMap, board.ZUIIndexOf(lens));
+                UpdateViewFinderZ(lens);
+            }
+            else if (lens != LensType.None)
+            {
+                UpdateViewFinderZ(lens);
+            }
+        }
+
+        public void Remove(LensType lens, MapBoard board)
+        {
+            _localBoard = board;
+
+            // TODO: Update stack box, if present.            
+            if (_currentLens == lens)
+            {
+                // TODO Deactivate?
+            }
+            else if (lens == LensType.All)
+            {
+                // TODO Deactivate?
+                RemoveViewFinder(lens);
+            }
+            else if (lens != LensType.None)
+            {
+                RemoveViewFinder(lens);
+            }
+        }
+
         public void ClearUI()
         {
             Console.WriteLine("Resetting CurrentLens...");
@@ -96,11 +181,15 @@ namespace ODTablet.MapBoardUI
                     DisplayLensMap();
                 }
                 DisplayViewFinders();
+                RefreshAllViewFinders();
             }
         }
 
+
         # region Basemap
+        
         private Map BasemapMap;
+        
         private void ConfigureBaseMap()
         {
             // Basemap map
@@ -113,13 +202,7 @@ namespace ODTablet.MapBoardUI
                     IsLogoVisible = false,
                     IsHitTestVisible = false,
                 };
-                BasemapMap.Loaded += BasemapMap_Loaded;
             }
-        }
-
-        void BasemapMap_Loaded(object sender, RoutedEventArgs e)
-        {
-            DisplayViewFinders();
         }
 
         private void DisplayBaseMap()
@@ -134,7 +217,9 @@ namespace ODTablet.MapBoardUI
         }
         # endregion
 
+
         # region LensMap
+
         private Map LensMap;
         
         private void ConfigureLensMap()
@@ -156,11 +241,14 @@ namespace ODTablet.MapBoardUI
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
-            OnMapExtentChanged(new MapEventArgs(_currentLens, e.NewExtent));
+            //if (!_passiveMode)
+            //{
+                OnMapExtentChanged(new MapEventArgs(_currentLens, e.NewExtent));
+            //}
             try
             {
                 BasemapMap.Extent = e.NewExtent;
-                //UpdateAllLensAccordingCurrentModeExtent();
+                RefreshAllViewFinders();
             }
             catch (Exception exception)
             {
@@ -170,9 +258,13 @@ namespace ODTablet.MapBoardUI
 
         void LensMap_Loaded(object sender, RoutedEventArgs e)
         {
-            //UpdateAllLensAccordingCurrentModeExtent();
+            ResetBoard(_localBoard); // I HAVE NO IDEA WHY, BUT IT ONLY WORKS THIS WAY.
+            if (!_passiveMode)
+            {
+                OnMapExtentChanged(new MapEventArgs(_currentLens, LensMap.Extent));
+            }
+            
         }
-
 
         private void DisplayLensMap()
         {
@@ -180,6 +272,7 @@ namespace ODTablet.MapBoardUI
 
             Lens LensToBeDisplayed = _localBoard.GetLens(_currentLens);
             LensMap.Layers.Add(LensToBeDisplayed.MapLayer); // TODO: NEW LAYER? MapBoard.GenerateMapLayerCollection(_currentLens)[0]
+            LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 }; // TODO: remove this!
             LensMap.Extent = LensToBeDisplayed.Extent;
 
             Grid.SetZIndex(LensMap, _localBoard.ZUIIndexOf(_currentLens));
@@ -210,7 +303,6 @@ namespace ODTablet.MapBoardUI
             }
         }
 
-
         # endregion
 
         # endregion
@@ -222,42 +314,26 @@ namespace ODTablet.MapBoardUI
             {
                 var viewfinderType = viewfinders.Key;
 
-                if (viewfinderType != CurrentLens)
+                if (viewfinderType != _currentLens)
                 {
-                    //AddViewFinderToScreen(_localBoard, viewfinders.Key);
-                    if (!ViewFinderExistsOnUI(viewfinderType))
-                    {
-                        Console.WriteLine("Adding " + viewfinderType + " viewfinder...");
-                        Lens viewfinder = _localBoard.GetLens(viewfinderType);
-                        MapViewFinder mvf = new MapViewFinder(viewfinder.Color, viewfinder.Extent)
-                        {
-                            Map = this.BasemapMap,
-                            Name = viewfinderType.ToString(),
-                            Layers = MapBoard.GenerateMapLayerCollection(viewfinderType),
-                        };
-                        int ZUIIndex = _localBoard.ZUIIndexOf(viewfinderType);
-                        Grid.SetZIndex(mvf, ZUIIndex);
-                        MBRoot.Children.Add(mvf);
-                        mvf.UpdateExtent(viewfinder.Extent);
-                        //mvf.Loaded += mvf_Loaded;
-                    }
+                    AddViewFinderToScreen(viewfinderType);
                 }
             }
         }
 
-        private void AddViewFinderToScreen(MapBoard _localBoard, LensType viewfinderType)
+        private void AddViewFinderToScreen(LensType lens)
         {
-            if (!ViewFinderExistsOnUI(viewfinderType))
+            if (!ViewFinderExistsOnUI(lens))
             {
-                Console.WriteLine("Adding " + viewfinderType + " viewfinder...");
-                Lens viewfinder = _localBoard.GetLens(viewfinderType);
+                Console.WriteLine("Adding " + lens + " viewfinder...");
+                Lens viewfinder = _localBoard.GetLens(lens);
                 MapViewFinder mvf = new MapViewFinder(viewfinder.Color, viewfinder.Extent)
                 {
                     Map = this.BasemapMap,
-                    Name = viewfinderType.ToString(),
-                    Layers = MapBoard.GenerateMapLayerCollection(viewfinderType),
+                    Name = lens.ToString(),
+                    Layers = MapBoard.GenerateMapLayerCollection(lens),
                 };
-                int ZUIIndex = _localBoard.ZUIIndexOf(viewfinderType);
+                int ZUIIndex = _localBoard.ZUIIndexOf(lens);
                 Grid.SetZIndex(mvf, ZUIIndex);
                 MBRoot.Children.Add(mvf);
                 mvf.UpdateExtent(viewfinder.Extent);
@@ -267,59 +343,91 @@ namespace ODTablet.MapBoardUI
 
         private void mvf_Loaded(object sender, RoutedEventArgs e)
         {
-            //UpdateAllLensAccordingCurrentModeExtent();
+            ((MapViewFinder)sender).Refresh();
         }
 
-
-
-        private void RemoveAllViewFinders()
+        private void RefreshAllViewFinders()
         {
             for (int i = 0; i < MBRoot.Children.Count; i++)
             {
                 if (MBRoot.Children[i] is MapViewFinder)
                 {
-                    Console.WriteLine("Removing " + ((MapViewFinder)MBRoot.Children[i]).Name + " viewfinder");
-                    MBRoot.Children.Remove(MBRoot.Children[i]);
+                    LensType type = MapBoard.StringToLensType(((MapViewFinder)MBRoot.Children[i]).Name);
+                    
+                    if (_localBoard.ViewFindersOf(_currentLens).ContainsKey(type))
+                    {
+                        // Check Z-index
+                        if (Grid.GetZIndex(MBRoot.Children[i]) != _localBoard.ZUIIndexOf(type))
+                        {
+                            Grid.SetZIndex(MBRoot.Children[i], _localBoard.ZUIIndexOf(type));
+                        }
+                        
+                        // Refresh MVF
+                        ((MapViewFinder)(MBRoot.Children[i])).Refresh();
+                    }
+                    else
+                    {
+                        MBRoot.Children.Remove(MBRoot.Children[i]);
+                    }
                 }
             }
         }
 
-        private void UpdateViewFinderExtent(MapBoard Board, LensType lens)
+        private void UpdateViewFinderExtent(LensType lens)
         {
-            if (ViewFinderExistsOnUI(lens))
+            if(ViewFinderExistsOnUI(lens))
             {
-                int i = GetViewFinderUIIndex(lens);
-                ((MapViewFinder)MBRoot.Children[i]).UpdateExtent(Board.ViewFindersOf(CurrentLens)[lens].Extent);
+                ((MapViewFinder)MBRoot.Children[GetViewFinderUIIndex(lens)])
+                    .UpdateExtent(_localBoard.GetLens(lens).Extent);
+            }
+            else if (lens == LensType.All)
+            {
+                RefreshAllViewFinders();
             }
             else
             {
-                // TODO: Add VF
+                AddViewFinderToScreen(lens);
             }
         }
 
-        
-
-        private void RefreshViewFinders()
+        private void UpdateViewFinderZ(LensType lens)
         {
-            RemoveAllViewFinders();
-            DisplayViewFinders();
+            if (ViewFinderExistsOnUI(lens))
+            {
+                Grid.SetZIndex(MBRoot.Children[GetViewFinderUIIndex(lens)], _localBoard.ZUIIndexOf(lens));
+            }
+            else if (lens == LensType.All)
+            {
+                RefreshAllViewFinders();
+            }
+            else
+            {
+                AddViewFinderToScreen(lens);
+            }
+        }
+
+        private void RemoveViewFinder(LensType lens)
+        {
+            if (ViewFinderExistsOnUI(lens))
+            {
+                MBRoot.Children.RemoveAt(GetViewFinderUIIndex(lens));
+            }
+            else if (lens == LensType.All)
+            {
+                RefreshAllViewFinders();
+            }
         }
 
         # endregion
 
 
 
-
-
-        
-
         protected virtual void OnMapExtentChanged(MapEventArgs e)
         {
-            if(ExtentUpdated != null)
+            if(MapExtentUpdated != null)
             {
-                ExtentUpdated(this, e);
+                MapExtentUpdated(this, e);
             }
-            //UpdateAllLensAccordingCurrentModeExtent();
         }
 
         private bool ViewFinderExistsOnUI(LensType viewfinderType)

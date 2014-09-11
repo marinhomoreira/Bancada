@@ -140,6 +140,7 @@ namespace ODTablet
             AppModeMenu.Children.Add(CreateAppModeButton(MapBoardMode.SingleLens, AppModeButton_Click));
             //AppModeMenu.Children.Add(CreateRegularButton("Reset all devices", SendRemoveAllLensCommand_Click)); // TODO
             //AppModeMenu.Children.Add(CreateRegularButton("Synch", GetAllModes_Click)); // TODO
+            Canvas.SetZIndex(AppModeMenu, 100);
         }
 
         # region Buttons
@@ -179,6 +180,7 @@ namespace ODTablet
             ClearUI();
             InitializeMainBoardWith(lens);
             DisplayActivationMenu();
+            DisplayCurrentLensLabel();
         }
 
         # endregion
@@ -198,6 +200,7 @@ namespace ODTablet
             InitializeMainBoardWith(lens);
             DisplayLensSelectionMenu();
             DisplayActivationMenu();
+            DisplayCurrentLensLabel();
         }
 
         # endregion
@@ -331,8 +334,12 @@ namespace ODTablet
         {
             MapBoardUC mbuc = new MapBoardUC(lens, board);
             mbuc.Name = lens.ToString();
-            mbuc.Width = 2160 / 4;
-            mbuc.Height = 1440 / 4;
+            
+            //double ratio = 3;
+            double width = this.Width / 3;
+            double ratio = width / 1920;
+            mbuc.Width = 1920 * ratio;
+            mbuc.Height = 1080 * ratio;
             mbuc.PassiveMode = true;
             mbuc.BorderBrush = new SolidColorBrush(MapBoard.GetColorOf(lens));
             mbuc.BorderThickness = new Thickness(3.0);
@@ -481,36 +488,38 @@ namespace ODTablet
             if(InsectExistsOnUI(lens))
             {
                 Dictionary<string, Point> lensCoord = MainBoardUC.GetScreenCoordinatesOf(lens);
-                // TODO: Make verification if dictionary doesn't contain points.
+                if (lensCoord.ContainsKey("topLeft"))
+                {
 
-                int i = GetInsectIndex(lens);
-                MapBoardUC mbuc = (MapBoardUC)InsectStack.Children[i];
-                Point p = mbuc.TranslatePoint(new Point(0,0), this);
-                Point screenCord = this.PointToScreen(p);
+                    int i = GetInsectIndex(lens);
+                    MapBoardUC mbuc = (MapBoardUC)InsectStack.Children[i];
+                    Point p = mbuc.TranslatePoint(new Point(0, 0), this);
+                    Point screenCord = this.PointToScreen(p);
 
-                Point I_topLeft = new Point(screenCord.X, screenCord.Y);
-                Point I_bottomLeft = new Point(screenCord.X, screenCord.Y + mbuc.ActualHeight);
-                Point I_topRight = new Point(screenCord.X + mbuc.ActualWidth, screenCord.Y);
-                Point I_bottomRight = new Point(screenCord.X + mbuc.ActualWidth, screenCord.Y + mbuc.ActualHeight);
+                    Point I_topLeft = new Point(screenCord.X, screenCord.Y);
+                    Point I_bottomLeft = new Point(screenCord.X, screenCord.Y + mbuc.ActualHeight);
+                    Point I_topRight = new Point(screenCord.X + mbuc.ActualWidth, screenCord.Y);
+                    Point I_bottomRight = new Point(screenCord.X + mbuc.ActualWidth, screenCord.Y + mbuc.ActualHeight);
 
-                Point L_topLeft = lensCoord["topLeft"];
-                Point L_bottomLeft = lensCoord["bottomLeft"];
-                Point L_topRight = lensCoord["topRight"];
-                Point L_bottomRight = lensCoord["bottomRight"];
+                    Point L_topLeft = lensCoord["topLeft"];
+                    Point L_bottomLeft = lensCoord["bottomLeft"];
+                    Point L_topRight = lensCoord["topRight"];
+                    Point L_bottomRight = lensCoord["bottomRight"];
 
-                Point[] leftSide = { L_topLeft, I_topLeft, I_bottomLeft, L_bottomLeft };
-                Point[] rightSide = { I_topRight, I_bottomRight, L_bottomRight, L_topRight };
-                Point[] rear = { L_topLeft, I_topLeft, I_topRight, L_topRight };
-                Point[] front = { L_bottomRight, I_bottomRight, I_bottomLeft, L_bottomLeft };
+                    Point[] leftSide = { L_topLeft, I_topLeft, I_bottomLeft, L_bottomLeft };
+                    Point[] rightSide = { I_topRight, I_bottomRight, L_bottomRight, L_topRight };
+                    Point[] rear = { L_topLeft, I_topLeft, I_topRight, L_topRight };
+                    Point[] front = { L_bottomRight, I_bottomRight, I_bottomLeft, L_bottomLeft };
 
-                Brush color = new SolidColorBrush(MapBoard.GetColorOf(lens));
+                    Brush color = new SolidColorBrush(MapBoard.GetColorOf(lens));
 
-                int ZIndex = Board.ZUIIndexOf(lens);
+                    int ZIndex = Board.ZUIIndexOf(lens);
 
-                DrawSide(rear, color, ZIndex);
-                DrawSide(leftSide, color, ZIndex);
-                DrawSide(rightSide, color, ZIndex);
-                DrawSide(front, color, ZIndex);
+                    DrawSide(rear, color, ZIndex);
+                    DrawSide(leftSide, color, ZIndex);
+                    DrawSide(rightSide, color, ZIndex);
+                    DrawSide(front, color, ZIndex);
+                }
             }
         }
 
@@ -591,7 +600,6 @@ namespace ODTablet
 
         #endregion
 
-
         # region Operations with Lenses
         private void LoadLens(LensType lens)
         {
@@ -605,6 +613,20 @@ namespace ODTablet
                     break;
                 default:
                     break;
+            }
+        }
+
+        private void DisplayCurrentLensLabel()
+        {
+            if (MainBoardUC != null)
+            {
+                Label current = new Label();
+                current.Content = "Current lens: " + MainBoardUC.CurrentLens;
+                current.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                current.VerticalAlignment = System.Windows.VerticalAlignment.Bottom;
+                current.FontSize = 24;
+                Grid.SetZIndex(current, 99);
+                LayoutRoot.Children.Add(current);
             }
         }
 

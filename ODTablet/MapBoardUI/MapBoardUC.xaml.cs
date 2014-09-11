@@ -464,37 +464,42 @@ namespace ODTablet.MapBoardUI
 
         # endregion
 
-        
-
         public Dictionary<string, Point> GetScreenCoordinatesOf(LensType lens)
         {
             Dictionary<string, Point> dict = new Dictionary<string, Point>();
 
             if(ViewFinderExistsOnUI(lens))
             {
-                int i = GetViewFinderUIIndex(lens);
-                MapViewFinder mvf = (MapViewFinder) MBRoot.Children[i];
-                Point canvasP = this.TranslatePoint(new Point(0, 0), mvf);
+                try
+                {
+                    int i = GetViewFinderUIIndex(lens);
+                    MapViewFinder mvf = (MapViewFinder)MBRoot.Children[i];
+                    Point canvasP = this.TranslatePoint(new Point(0, 0), mvf);
 
-                Point p = (mvf.TransformToVisual(this)).Transform(
-                    new Point(
-                        mvf.Translate.X,
-                        mvf.Translate.Y
-                    )
-                );
+                    Point p = (mvf.TransformToVisual(this)).Transform(
+                        new Point(
+                            mvf.Translate.X,
+                            mvf.Translate.Y
+                        )
+                    );
 
-                Point screenCord;
-                screenCord = this.PointToScreen(p);
-                
-                Point topLeft = new Point(screenCord.X, screenCord.Y);
-                Point bottomLeft = new Point(screenCord.X, screenCord.Y + mvf.ActualHeight);
-                Point topRight = new Point(screenCord.X + mvf.ActualWidth, screenCord.Y);
-                Point bottomRight = new Point(screenCord.X + mvf.ActualWidth, screenCord.Y + mvf.ActualHeight);
-                
-                dict.Add("topLeft", topLeft);
-                dict.Add("bottomLeft", bottomLeft);
-                dict.Add("topRight", topRight);
-                dict.Add("bottomRight", bottomRight);
+                    Point screenCord;
+                    screenCord = this.PointToScreen(p);
+
+                    Point topLeft = new Point(screenCord.X, screenCord.Y);
+                    Point bottomLeft = new Point(screenCord.X, screenCord.Y + mvf.ActualHeight);
+                    Point topRight = new Point(screenCord.X + mvf.ActualWidth, screenCord.Y);
+                    Point bottomRight = new Point(screenCord.X + mvf.ActualWidth, screenCord.Y + mvf.ActualHeight);
+
+                    dict.Add("topLeft", topLeft);
+                    dict.Add("bottomLeft", bottomLeft);
+                    dict.Add("topRight", topRight);
+                    dict.Add("bottomRight", bottomRight);
+                }
+                catch (Exception e)
+                {
+
+                }
             }
 
             return dict;

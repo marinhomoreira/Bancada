@@ -145,6 +145,7 @@ namespace ODTablet.LensViewFinder
             if (this.Map.Extent != null && this.Map.Extent.Intersects(lensExtent))
             {
                 Envelope MapLensIntersectionExtent = lensExtent.Intersection(this.Map.Extent);
+                MapLensIntersectionExtent.SpatialReference = new SpatialReference() { WKID = 3857 };
                 try
                 {
                     ResizeWindow(MapLensIntersectionExtent);
@@ -155,6 +156,10 @@ namespace ODTablet.LensViewFinder
                 catch (InvalidOperationException e)
                 {
                     //Console.WriteLine("Invalid operation exception! FAIL: " + e.Message);
+                }
+                catch (Exception e)
+                {
+                    //Console.WriteLine("FAIL: " + e.Message);
                 }
             }
             else

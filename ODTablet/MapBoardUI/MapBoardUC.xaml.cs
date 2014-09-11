@@ -386,6 +386,7 @@ namespace ODTablet.MapBoardUI
         private void mvf_Loaded(object sender, RoutedEventArgs e)
         {
             ((MapViewFinder)sender).Refresh();
+            RefreshAllViewFinders();
         }
 
         private void RefreshAllViewFinders()
@@ -453,6 +454,7 @@ namespace ODTablet.MapBoardUI
             if (ViewFinderExistsOnUI(lens))
             {
                 MBRoot.Children.RemoveAt(GetViewFinderUIIndex(lens));
+                RefreshAllViewFinders();
             }
             else if (lens == LensType.All)
             {

@@ -40,15 +40,19 @@ namespace ODTablet
 
             //CurrentAppMode = MapBoardMode.MultipleLenses;
             //LoadMultipleLensMode();
-            CurrentAppMode = MapBoardMode.Overview;
-            LoadOverviewMode();
+
+            //CurrentAppMode = MapBoardMode.Overview;
+            //LoadOverviewMode();
+
+            CurrentAppMode = MapBoardMode.SingleLens;
+            LoadSingleLensMode();
+
             //Board.StartLens(LensType.Satellite);
             
             // SOD stuff
             ConfigureSoD();
             ConfigureDevice();
             RegisterSoDEvents();
-
         }
 
 
@@ -82,10 +86,28 @@ namespace ODTablet
                     break;
             }
         }
+        
         private void ClearCurrentMode()
         {
             Console.WriteLine("Resetting CurrentAppMode...");
             CurrentAppMode = MapBoardMode.None;
+        }
+
+        private void Reset()
+        {
+            LensType l = LensType.None;
+            if (MainBoardUC != null)
+            {
+                l = MainBoardUC.CurrentLens;
+            }
+            ConfigureBoard();
+            LoadMode(CurrentAppMode);
+
+            if (CurrentAppMode == MapBoardMode.SingleLens && l != LensType.None)
+            {
+                BuildSingleLensUI(l);
+                DeactivateMBUC();
+            }
         }
 
         # region Application Mode Menu
@@ -157,7 +179,7 @@ namespace ODTablet
         {
             ClearUI();
             InitializeMainBoardWith(lens);
-            //TODO: Display Menu
+            DisplayActivationMenu();
         }
 
         # endregion
@@ -176,7 +198,7 @@ namespace ODTablet
             ClearUI();
             InitializeMainBoardWith(lens);
             DisplayLensSelectionMenu();
-            //TODO: Display Menu
+            DisplayActivationMenu();
         }
 
         # endregion
@@ -201,11 +223,11 @@ namespace ODTablet
             RefreshInsectStack();
             
             DisplayOverviewMenu();
-
         }
 
 
         private StackPanel OverviewMenu;
+        Button StartTaskBtn, TaskCompletedBtn;
 
         private void ConfigureOverviewMenu()
         {
@@ -217,20 +239,39 @@ namespace ODTablet
                 Orientation = Orientation.Horizontal,
             };
 
-            OverviewMenu.Children.Add(CreateRegularButton("Reset", Reset_Click));
-            OverviewMenu.Children.Add(CreateRegularButton("Refresh", RefreshOverview_Click));
+            TaskCompletedBtn = CreateRegularButton("Complete Task", CompleteTask_Click);
+            StartTaskBtn = CreateRegularButton("Start task", StartTask_Click);
+
+            //OverviewMenu.Children.Add(CreateRegularButton("Reset", Reset_Click));
+            //OverviewMenu.Children.Add(CreateRegularButton("Refresh", RefreshOverview_Click));
+            OverviewMenu.Children.Add(StartTaskBtn);
+        }
+
+        private void StartTask_Click(object sender, RoutedEventArgs e)
+        {
+            OverviewMenu.Children.Remove(StartTaskBtn);
+            if (!OverviewMenu.Children.Contains(TaskCompletedBtn))
+                OverviewMenu.Children.Add(TaskCompletedBtn);
+            SendStartTaskMsg();
+        }
+
+        private void CompleteTask_Click(object sender, RoutedEventArgs e)
+        {
+            Reset();
+            SendCompleteTaskMsg();
+            SendResetAppMessage();
+            OverviewMenu.Children.Remove(TaskCompletedBtn);
+            if (!OverviewMenu.Children.Contains(StartTaskBtn))
+                OverviewMenu.Children.Add(StartTaskBtn);
         }
 
         private void Reset_Click(object sender, RoutedEventArgs e)
         {
             Reset();
+            SendResetAppMessage();
         }
 
-        private void Reset()
-        {
-            ConfigureBoard();
-            LoadMode(CurrentAppMode);
-        }
+        
 
         private void DisplayOverviewMenu()
         {
@@ -259,8 +300,7 @@ namespace ODTablet
             return b;
         }
 
-
-
+        
         # endregion
 
 
@@ -271,8 +311,8 @@ namespace ODTablet
         void MBUC_ExtentUpdated(object sender, MapEventArgs e)
         {
             Board.GetLens(e.ModifiedLens).Extent = e.Extent;
-            //Console.WriteLine("Broadcasting {0}, {1}", e.ModifiedLens, e.Extent);
-            BroadcastExtent(e.ModifiedLens, e.Extent);
+            if(MainBoardUC != null && MainBoardUC.IsActive)
+                BroadcastExtent(e.ModifiedLens, e.Extent);
         }
 
         private void InitializeMainBoardWith(LensType lens)
@@ -282,7 +322,6 @@ namespace ODTablet
             MainBoardUC.MapExtentUpdated += MBUC_ExtentUpdated;
             LayoutRoot.Children.Add(MainBoardUC);
         }
-
         # endregion
 
 
@@ -478,11 +517,122 @@ namespace ODTablet
 
         # endregion
 
-        # region Activate/Deactivate Lens
+        # region Activate/Deactivate MBUC
+
+        private StackPanel ActivationMenu;
+        Button ActivateLensButton, DeactivateLensButton;
+
+        private void ConfigureActivationMenu()
+        {
+            if(ActivationMenu == null)
+            {
+                ActivationMenu = new StackPanel()
+                {
+                    Name = "ActivationMenu"
+                };
+                
+                Canvas.SetZIndex(ActivationMenu, 99);
+                ActivationMenu.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                ActivationMenu.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                ActivationMenu.Orientation = Orientation.Horizontal;
+            }
+
+            if (DeactivateLensButton == null) DeactivateLensButton = CreateRegularButton("Deactivate", Deactivate_Click);
+            if (ActivateLensButton == null) ActivateLensButton = CreateRegularButton("Activate", Activate_Click);            
+
+            
+        }
+
+        private void DisplayActivationMenu()
+        {
+            if ((CurrentAppMode == MapBoardMode.MultipleLenses || CurrentAppMode == MapBoardMode.SingleLens) && MainBoardUC != null)
+            {
+                if (LayoutRoot.Children.Contains(ActivationMenu))
+                {
+                    LayoutRoot.Children.Remove(ActivationMenu);
+                }
+                
+                ConfigureActivationMenu();
+
+                if ((!ActivationMenu.Children.Contains(DeactivateLensButton) || ActivationMenu.Children.Contains(ActivateLensButton)) && MainBoardUC.IsActive == true)
+                {
+                    ActivationMenu.Children.Remove(ActivateLensButton);
+                    ActivationMenu.Children.Add(DeactivateLensButton);
+                }
+                else if ((ActivationMenu.Children.Contains(DeactivateLensButton) || !ActivationMenu.Children.Contains(ActivateLensButton)) && MainBoardUC.IsActive == false)
+                {
+                    ActivationMenu.Children.Remove(DeactivateLensButton);
+                    ActivationMenu.Children.Add(ActivateLensButton);
+                }
+                LayoutRoot.Children.Add(ActivationMenu);
+            }
+        }
+
+        private void Deactivate_Click(object sender, RoutedEventArgs e)
+        {
+            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            DeactivateMBUC();
+        }
+
+        private void Activate_Click(object sender, RoutedEventArgs e)
+        {
+            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            ActivateMBUC();
+        }
+
+        private void ActivateMBUC()
+        {
+            if(CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses)
+            {
+                LayoutRoot.Children.Remove(DeactivatedLensMsg);
+                LensType current = MainBoardUC.CurrentLens;
+                MainBoardUC.Activate();
+                Board.BringToFront(current);
+                BroadcastExtent(current, Board.GetLens(current).Extent);
+                DisplayActivationMenu();
+            }
+        }
+
+        private void DeactivateMBUC()
+        {
+            if (CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses)
+            {
+                DisplayDeactivatedMsg();
+                LensType current = MainBoardUC.CurrentLens;
+                MainBoardUC.Deactivate();
+                Board.RemoveLens(current);
+                SendRemoveLensModeMessage(current);
+                DisplayActivationMenu();
+            }
+        }
 
 
+        private Label DeactivatedLensMsg;
+        private void ConfigureDeactivatedMsg()
+        {
+            DeactivatedLensMsg = new Label();
+            DeactivatedLensMsg.Content = "INACTIVE. PRESS ACTIVATE.";
+            DeactivatedLensMsg.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+            DeactivatedLensMsg.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+            DeactivatedLensMsg.FontWeight = FontWeights.Bold;
+            DeactivatedLensMsg.FontSize = 60;
+            DeactivatedLensMsg.BorderBrush = Brushes.Black;
+            Grid.SetZIndex(DeactivatedLensMsg, 100);
+        }
+
+        private void DisplayDeactivatedMsg()
+        {
+            if (DeactivatedLensMsg == null)
+            {
+                ConfigureDeactivatedMsg();
+            } else if (LayoutRoot.Children.Contains(DeactivatedLensMsg))
+            {
+                LayoutRoot.Children.Add(DeactivatedLensMsg);
+            }
+        }
 
         # endregion
+
 
         # endregion
 
@@ -651,6 +801,16 @@ namespace ODTablet
             SoD.SendDictionaryToDevices(dict, "all");
         }
 
+        private void SendCompleteTaskMsg()
+        {
+            SoD.SendStringToDevices("TaskCompleted", "all");
+        }
+
+        private void SendStartTaskMsg()
+        {
+            SoD.SendStringToDevices("TaskStarted", "all");
+        }
+
         private void SendResetAppMessage()
         {
             Dictionary<string, string> dict = new Dictionary<string, string>();
@@ -693,7 +853,7 @@ namespace ODTablet
                     LensType lens = MapBoard.StringToLensType(removeMode);
                     if (lens.Equals(LensType.All))
                     {
-                        //ResetApp(); //TODO
+                        Reset();
                         return;
                     }
                     Board.RemoveLens(lens);
@@ -734,13 +894,22 @@ namespace ODTablet
                     break;
                 case Key.R:
                     MainBoardUC.ResetBoard(Board);
-                    RefreshInsectStack();
+                    if(CurrentAppMode == MapBoardMode.Overview) RefreshInsectStack();
+                    break;
+                case Key.A:
+                    ActivateMBUC();
+                    break;
+                case Key.S:
+                    DeactivateMBUC();
                     break;
                 case Key.C:
                     //if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
                     //{
                         DisplayLensSelectionMenu();
                     //}
+                    break;
+                case Key.Q:
+                    Reset();
                     break;
                 case Key.Escape:
                     Application.Current.Shutdown();

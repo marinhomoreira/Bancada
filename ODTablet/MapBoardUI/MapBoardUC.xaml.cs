@@ -52,9 +52,15 @@ namespace ODTablet.MapBoardUI
 
         private bool _passiveMode = false;
 
-        private Label DeactivatedLens;
         MapModifiedEventHandler temp;
-        
+
+        private bool _isActive = true;
+
+        public bool IsActive
+        {
+            get { return _isActive; }
+        }
+
         public bool PassiveMode
         {
             get { return _passiveMode; }
@@ -176,10 +182,21 @@ namespace ODTablet.MapBoardUI
 
         public void Activate()
         {
-            MBRoot.Children.Remove(DeactivatedLens);
-            this.LensMap.IsHitTestVisible = true;
-            LensMap.Opacity = 1;
+            if (this.LensMap != null)
+            {
+                this.LensMap.IsHitTestVisible = true;
+                LensMap.Opacity = 1;
+                if (tempExtent != null)
+                {
+                    LensMap.Extent = tempExtent;
+                    tempExtent = null;
+                }
+                ResetBoard(_localBoard); // TODO: TEST!
+            }
+            _isActive = true;
         }
+
+        Envelope tempExtent;
 
         public void Deactivate()
         {
@@ -187,14 +204,9 @@ namespace ODTablet.MapBoardUI
             {
                 this.LensMap.IsHitTestVisible = false;
                 LensMap.Opacity = 0.3;
+                tempExtent = LensMap.Extent;
             }
-            DeactivatedLens = new Label();
-            DeactivatedLens.Content = "INACTIVE.\nPRESS ACTIVATE.";
-            DeactivatedLens.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-            DeactivatedLens.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-            DeactivatedLens.FontWeight = FontWeights.Bold;
-            DeactivatedLens.FontSize = 60;
-            MBRoot.Children.Add(DeactivatedLens);
+            _isActive = false;
         }
 
         # endregion

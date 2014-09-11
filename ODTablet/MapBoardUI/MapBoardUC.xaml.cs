@@ -155,7 +155,6 @@ namespace ODTablet.MapBoardUI
         {
             _localBoard = board;
 
-            // TODO: Update stack box, if present.            
             if (_currentLens == lens)
             {
                 Deactivate();
@@ -165,7 +164,7 @@ namespace ODTablet.MapBoardUI
                 Deactivate();
                 RemoveViewFinder(lens);
             }
-            else if (lens != LensType.None)
+            else if (lens != LensType.None && _currentLens != lens)
             {
                 RemoveViewFinder(lens);
             }
@@ -189,6 +188,7 @@ namespace ODTablet.MapBoardUI
                 if (tempExtent != null)
                 {
                     LensMap.Extent = tempExtent;
+                    _localBoard.GetLens(_currentLens).Extent = tempExtent;
                     tempExtent = null;
                 }
                 ResetBoard(_localBoard); // TODO: TEST!

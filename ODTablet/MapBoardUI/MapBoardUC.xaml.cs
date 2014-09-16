@@ -35,7 +35,6 @@ namespace ODTablet.MapBoardUI
         }
     }
 
-    
     /// <summary>
     /// Interaction logic for MapBoardUC.xaml
     /// </summary>
@@ -87,6 +86,16 @@ namespace ODTablet.MapBoardUI
         }
 
         private MapBoard _localBoard;
+
+        private bool _displayViewfinders = true;
+
+        public bool DisplayViewfinders
+        {
+            get { return _displayViewfinders; }
+            set { _displayViewfinders = value; ResetBoard(_localBoard); }
+        }
+
+
 
         # region Interface
         public MapBoardUC(LensType lens, MapBoard board)
@@ -223,8 +232,12 @@ namespace ODTablet.MapBoardUI
                     ConfigureLensMap();
                     DisplayLensMap();
                 }
-                DisplayViewFinders();
-                RefreshAllViewFinders();
+
+                if(_displayViewfinders)
+                {
+                    DisplayViewFinders();
+                    RefreshAllViewFinders();
+                }
             }
         }
 
@@ -365,7 +378,7 @@ namespace ODTablet.MapBoardUI
 
         private void AddViewFinderToScreen(LensType lens)
         {
-            if (!ViewFinderExistsOnUI(lens))
+            if (!ViewFinderExistsOnUI(lens) && _displayViewfinders)
             {
                 //Console.WriteLine("Adding " + lens + " viewfinder...");
                 Lens viewfinder = _localBoard.GetLens(lens);
@@ -418,34 +431,40 @@ namespace ODTablet.MapBoardUI
 
         private void UpdateViewFinderExtent(LensType lens)
         {
-            if(ViewFinderExistsOnUI(lens))
+            if (_displayViewfinders)
             {
-                ((MapViewFinder)MBRoot.Children[GetViewFinderUIIndex(lens)])
-                    .UpdateExtent(_localBoard.GetLens(lens).Extent);
-            }
-            else if (lens == LensType.All)
-            {
-                RefreshAllViewFinders();
-            }
-            else
-            {
-                AddViewFinderToScreen(lens);
+                if (ViewFinderExistsOnUI(lens))
+                {
+                    ((MapViewFinder)MBRoot.Children[GetViewFinderUIIndex(lens)])
+                        .UpdateExtent(_localBoard.GetLens(lens).Extent);
+                }
+                else if (lens == LensType.All)
+                {
+                    RefreshAllViewFinders();
+                }
+                else
+                {
+                    AddViewFinderToScreen(lens);
+                }
             }
         }
 
         private void UpdateViewFinderZ(LensType lens)
         {
-            if (ViewFinderExistsOnUI(lens))
+            if (_displayViewfinders)
             {
-                Grid.SetZIndex(MBRoot.Children[GetViewFinderUIIndex(lens)], _localBoard.ZUIIndexOf(lens));
-            }
-            else if (lens == LensType.All)
-            {
-                RefreshAllViewFinders();
-            }
-            else
-            {
-                AddViewFinderToScreen(lens);
+                if (ViewFinderExistsOnUI(lens))
+                {
+                    Grid.SetZIndex(MBRoot.Children[GetViewFinderUIIndex(lens)], _localBoard.ZUIIndexOf(lens));
+                }
+                else if (lens == LensType.All)
+                {
+                    RefreshAllViewFinders();
+                }
+                else
+                {
+                    AddViewFinderToScreen(lens);
+                }
             }
         }
 
@@ -516,13 +535,17 @@ namespace ODTablet.MapBoardUI
 
         private bool ViewFinderExistsOnUI(LensType viewfinderType)
         {
-            for (int i = 0; i < MBRoot.Children.Count; i++)
+            if (_displayViewfinders)
             {
-                if (MBRoot.Children[i] is MapViewFinder)
+                for (int i = 0; i < MBRoot.Children.Count; i++)
                 {
-                    LensType type = MapBoard.StringToLensType(((MapViewFinder)MBRoot.Children[i]).Name);
-                    if (type == viewfinderType) return true;
+                    if (MBRoot.Children[i] is MapViewFinder)
+                    {
+                        LensType type = MapBoard.StringToLensType(((MapViewFinder)MBRoot.Children[i]).Name);
+                        if (type == viewfinderType) return true;
+                    }
                 }
+                return false;
             }
             return false;
         }

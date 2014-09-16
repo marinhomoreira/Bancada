@@ -176,6 +176,7 @@ namespace ODTablet
         private void BuildSingleLensUI(LensType lens)
         {
             ClearUI();
+            Board = new MapBoard();
             InitializeMainBoardWith(lens);
             DisplayActivationMenu();
             DisplayCurrentLensLabel();
@@ -316,6 +317,10 @@ namespace ODTablet
         {
             Board.StartLens(lens);
             MainBoardUC = new MapBoardUC(lens, Board);
+            if(CurrentAppMode == MapBoardMode.MultipleLenses || CurrentAppMode == MapBoardMode.SingleLens)
+            {
+                MainBoardUC.DisplayViewfinders = false;
+            }
             MainBoardUC.MapExtentUpdated += MBUC_ExtentUpdated;
             LayoutRoot.Children.Add(MainBoardUC);
         }
@@ -645,6 +650,7 @@ namespace ODTablet
                 LayoutRoot.Children.Add(LensSelectionMenu);
             }
         }
+
         private void ConfigureLensSelectionMenu()
         {
             LensSelectionMenu = new StackPanel()

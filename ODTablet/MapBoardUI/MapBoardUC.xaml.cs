@@ -192,8 +192,8 @@ namespace ODTablet.MapBoardUI
                     tempExtent = null;
                 }
                 ResetBoard(_localBoard); // TODO: TEST!
+                _isActive = true;
             }
-            _isActive = true;
         }
 
         Envelope tempExtent;
@@ -205,8 +205,8 @@ namespace ODTablet.MapBoardUI
                 this.LensMap.IsHitTestVisible = false;
                 LensMap.Opacity = 0.3;
                 tempExtent = LensMap.Extent;
+                _isActive = false;
             }
-            _isActive = false;
         }
 
         # endregion

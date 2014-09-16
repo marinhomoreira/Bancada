@@ -54,7 +54,6 @@ namespace ODTablet
             RegisterSoDEvents();
         }
 
-
         private void ConfigureBoard()
         {
             Board = new MapBoard();
@@ -63,7 +62,6 @@ namespace ODTablet
             Board.LensRemoved += Board_LensRemoved;
             Board.LensStackPositionChanged += Board_LensStackPositionChanged;
         }
-
 
         # region Mode Selection
         private void LoadMode(MapBoardMode currentAppMode)
@@ -303,8 +301,6 @@ namespace ODTablet
 
         
         # endregion
-
-
 
         # region MainBoardUserControl
 
@@ -600,6 +596,7 @@ namespace ODTablet
 
         #endregion
 
+
         # region Operations with Lenses
         private void LoadLens(LensType lens)
         {
@@ -610,6 +607,7 @@ namespace ODTablet
                     break;
                 case MapBoardMode.MultipleLenses:
                     BuildMultipleLensUI(lens);
+                    Board.BringToFront(lens);
                     break;
                 default:
                     break;
@@ -761,7 +759,10 @@ namespace ODTablet
             {
                 LayoutRoot.Children.Remove(DeactivatedLensMsg);
                 LensType current = MainBoardUC.CurrentLens;
-                MainBoardUC.Activate();
+                while (!MainBoardUC.IsActive)
+                {
+                    MainBoardUC.Activate();
+                }
                 Board.BringToFront(current);
                 BroadcastExtent(current, Board.GetLens(current).Extent);
                 DisplayActivationMenu();
@@ -774,7 +775,10 @@ namespace ODTablet
             {
                 DisplayDeactivatedMsg();
                 LensType current = MainBoardUC.CurrentLens;
-                MainBoardUC.Deactivate();
+                while (MainBoardUC.IsActive)
+                {
+                    MainBoardUC.Deactivate();
+                }
                 Board.RemoveLens(current);
                 SendRemoveLensModeMessage(current);
                 DisplayActivationMenu();
@@ -810,7 +814,6 @@ namespace ODTablet
 
 
         # endregion
-
 
 
         # region Board Event Handlers
@@ -865,6 +868,7 @@ namespace ODTablet
         }
 
         #endregion
+
 
         private void ClearUI()
         {
@@ -1007,11 +1011,14 @@ namespace ODTablet
 
             if (updateMode != null)
             {
-                this.Dispatcher.Invoke((Action)(() =>
+                if (CurrentAppMode != MapBoardMode.SingleLens)
                 {
-                    LensType lens = MapBoard.StringToLensType(updateMode);
-                    Board.UpdateLens(lens, extentString);
-                }));
+                    this.Dispatcher.Invoke((Action)(() =>
+                    {
+                        LensType lens = MapBoard.StringToLensType(updateMode);
+                        Board.UpdateLens(lens, extentString);
+                    }));
+                }
             }
 
             if (removeMode != null)

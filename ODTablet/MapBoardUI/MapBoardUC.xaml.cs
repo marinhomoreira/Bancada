@@ -323,11 +323,14 @@ namespace ODTablet.MapBoardUI
 
         private void DisplayLensMap()
         {
-            //Console.WriteLine("Displaying " + _currentLens + " lens...");
-
             Lens LensToBeDisplayed = _localBoard.GetLens(_currentLens);
-            LensMap.Layers.Add(MapBoard.GenerateMapLayerCollection(_currentLens)[0]); // LensToBeDisplayed.MapLayer
+            
+            Layer layer = MapBoard.GenerateMapLayerCollection(_currentLens)[0];
+            layer.ID = _currentLens.ToString();
+            LensMap.Layers.Add(layer);
+            
             LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 }; // TODO: remove this!
+            
             LensMap.Extent = LensToBeDisplayed.Extent;
 
             Grid.SetZIndex(LensMap, _localBoard.ZUIIndexOf(_currentLens));
@@ -343,16 +346,16 @@ namespace ODTablet.MapBoardUI
             }
 
             // Legend
-            ESRI.ArcGIS.Client.Toolkit.Legend legend; // TODO: Remove it from here when solving legend problem.
+            ESRI.ArcGIS.Client.Toolkit.Legend legend;
             if (_currentLens.Equals(LensType.Population))
             {
                 legend = new ESRI.ArcGIS.Client.Toolkit.Legend();
                 legend.Map = LensMap;
-                legend.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
-                legend.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                legend.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                legend.VerticalAlignment = System.Windows.VerticalAlignment.Bottom;
                 legend.LayerIDs = new string[] { _currentLens.ToString() };
                 legend.LayerItemsMode = ESRI.ArcGIS.Client.Toolkit.Legend.Mode.Flat;
-                legend.ShowOnlyVisibleLayers = false;
+                legend.ShowOnlyVisibleLayers = true;
                 Grid.SetZIndex(legend, 99);
                 MBRoot.Children.Add(legend);
             }

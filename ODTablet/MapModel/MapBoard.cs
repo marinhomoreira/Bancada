@@ -98,7 +98,7 @@ namespace ODTablet.MapModel
             }
             UpdateZIndex(lens, (string)null);
         }
-                
+
         public void ClearBoardAndStackLensesAccordingToOverview(Dictionary<string, string> remoteDictionary)
         {
             if (remoteDictionary.Count > 1)

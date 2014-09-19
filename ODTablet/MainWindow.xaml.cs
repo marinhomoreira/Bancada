@@ -1241,6 +1241,13 @@ namespace ODTablet
         private void RemoteLensWasFreed()
         {
             RemoteLens = LensType.None;
+            this.Dispatcher.Invoke((Action)(() =>
+            {
+                if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None) || CurrentAppMode == MapBoardMode.MultipleLenses)
+                {
+                    DisplayLensSelectionMenu();
+                }
+            }));
         }
 
         # endregion

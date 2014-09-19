@@ -19,6 +19,7 @@ using ODTablet.LensViewFinder;
 using SOD_CS_Library;
 using ODTablet.MapBoardUI;
 using ESRI.ArcGIS.Client.Geometry;
+using System.Windows.Markup;
 
 namespace ODTablet
 {
@@ -61,7 +62,7 @@ namespace ODTablet
             Board.LensExtentUpdated += Board_LensExtentUpdated;
             Board.LensRemoved += Board_LensRemoved;
             Board.LensStackPositionChanged += Board_LensStackPositionChanged;
-        }
+        } 
 
         # region Mode Selection
         private void LoadMode(MapBoardMode currentAppMode)
@@ -593,10 +594,7 @@ namespace ODTablet
 
         private void AddLensSelectionButtons(LensType lens)
         {
-            if (LensCanBeActivated(lens))
-            {
-                LensSelectionMenu.Children.Add(CreateLensButton(lens.ToString(), LensSelectionButton_Click));
-            }
+            LensSelectionMenu.Children.Add(CreateLensButton(lens.ToString(), LensSelectionButton_Click));
         }
 
         private void LensSelectionButton_Click(object sender, RoutedEventArgs e)
@@ -608,20 +606,85 @@ namespace ODTablet
             }
             
             LensType lens = MapBoard.StringToLensType(((Button)sender).Name);
+
             FreeLens(CurrentLocalLens);
             LoadLens(lens);
         }
 
+
+        static SolidColorBrush[] Satellite = new SolidColorBrush[] { Brushes.Green, Brushes.LightGreen };
+        static SolidColorBrush[] Streets = new SolidColorBrush[] { Brushes.Red, Brushes.Pink };
+        static SolidColorBrush[] Population = new SolidColorBrush[] { Brushes.Yellow, Brushes.LightYellow };
+        static SolidColorBrush[] ElecDict = new SolidColorBrush[] { Brushes.Black, Brushes.DarkGray };
+        static SolidColorBrush[] Cities = new SolidColorBrush[] { Brushes.Blue, Brushes.LightBlue };
+
+        Dictionary<LensType, SolidColorBrush[]> VFColorDic = new Dictionary<LensType, SolidColorBrush[]>() {
+                {LensType.Satellite, Satellite},
+                {LensType.Streets, Streets},
+                {LensType.Population, Population},
+                {LensType.ElectoralDistricts, ElecDict},
+                {LensType.Cities, Cities},
+            };
+
         private Button CreateLensButton(string content, RoutedEventHandler reh)
         {
+            LensType l = MapBoard.StringToLensType(content);
+
+            //ControlTemplate ct = new ControlTemplate();
+            //ct.VisualTree = new FrameworkElementFactory(typeof(Button));
+
+            //Trigger t = new Trigger() { Property = Button.IsFocusedProperty, Value = true };
+            //Setter s = new Setter() { Property = Button.BackgroundProperty, Value = VFColorDic[l][0] };
+            //t.Setters.Add(s);
+            //ct.Triggers.Add(t);
+            //Trigger t1 = new Trigger() { Property = Button.IsMouseOverProperty, Value = true };
+            //t1.Setters.Add(s);
+            //ct.Triggers.Add(t1);
+
             Button b = new Button();
+            
             b.Content = content;
             b.Width = 100;
             b.Height = 50;
             b.Click += reh;
             if (Board != null && Board.LensCanBeActivated(content))
             {
-                b.Background = new SolidColorBrush(MapBoard.GetColorOf(content));
+                if (LensCanBeActivated(l))
+                {
+                    if (CurrentLocalLens == l)
+                    {
+                        b.Background = VFColorDic[l][0];
+                    }
+                    else
+                    {
+                        b.Background = VFColorDic[l][1];
+                    }
+                }
+                else
+                {
+                    b.Background = Brushes.Gray;
+                }
+
+
+                //b.TouchEnter += b_TouchDown;
+                b.GotFocus += b_TouchDown;
+                
+                //b.GotKeyboardFocus += b_TouchDown;
+                //b.GotMouseCapture += b_TouchDown;
+                //b.GotStylusCapture += b_TouchDown;
+                //b.GotTouchCapture += b_TouchDown;
+                //b.MouseEnter += b_TouchDown;
+                //b.PreviewMouseMove += b_TouchDown;
+                
+                //b.MouseLeave += b_LostFocus;
+                b.TouchUp += b_LostFocus;
+                //b.LostMouseCapture += b_LostFocus;
+                b.LostFocus += b_LostFocus;
+                //b.LostStylusCapture += b_LostFocus;
+                b.LostTouchCapture += b_LostFocus;
+
+                
+                
                 bool conditionToWhite = content.Equals(LensType.ElectoralDistricts.ToString()) || content.Equals(LensType.Cities.ToString());
                 b.Foreground = conditionToWhite ? Brushes.White : Brushes.Black;
             }
@@ -635,6 +698,19 @@ namespace ODTablet
                 Console.WriteLine("Fail: " + exception.Message);
             }
             return b;
+        }
+
+        private void b_LostFocus(object sender, EventArgs e)
+        {
+            LensType l = MapBoard.StringToLensType(((Button)sender).Content.ToString());
+            if(l != CurrentLocalLens)
+                ((Button)sender).Background = VFColorDic[l][1];
+        }
+
+        void b_TouchDown(object sender, EventArgs e)
+        {
+            LensType l = MapBoard.StringToLensType(((Button)sender).Content.ToString());
+            ((Button)sender).Background =  VFColorDic[l][0];
         }
 
         # endregion

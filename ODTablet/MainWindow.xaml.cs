@@ -225,13 +225,13 @@ namespace ODTablet
         {
             if (LensCanBeActivated(lens))
             {
-                RemoveRemoteLensInUseMsg();
                 CurrentLocalLens = lens;
                 aLensToKillFor = LensType.None; // if you don't do this, it will keep the last one and everytime you change a lens it will destroy the last one.
                 DisplayBaseMap();
                 AddLayerToMap(lens);
                 LensMap.IsHitTestVisible = true;
                 DisplayLensSelectionMenu();
+                RemoveRemoteLensInUseMsg();
                 RemoveDeactivatedMsg();
                 DisplayActivationMenu();
                 DisplayCurrentLensLabel();
@@ -246,9 +246,6 @@ namespace ODTablet
                 DisplayLensSelectionMenu();
             }
         }
-
-
-        
 
         LensType aLensToKillFor = LensType.None;
 
@@ -366,6 +363,7 @@ namespace ODTablet
             }
             if (!MsgsPanel.Children.Contains(DeactivatedLensMsg))
             {
+                MsgsPanel.Children.Clear();
                 MsgsPanel.Children.Add(DeactivatedLensMsg);
             }
         }
@@ -406,6 +404,7 @@ namespace ODTablet
             }
             if (!MsgsPanel.Children.Contains(RemoteLensInUseMsg))
             {
+                MsgsPanel.Children.Clear();
                 MsgsPanel.Children.Add(RemoteLensInUseMsg);
             }
         }
@@ -1158,7 +1157,7 @@ namespace ODTablet
             
             SoD.socket.On("FreedLens", (dict) =>
             {
-                this.RemoteLensWasFreed();
+                this.RemoteLensWasFreed(SoD.ParseMessageIntoDictionary(dict));
             });
 
             // make the socket.io connection
@@ -1292,20 +1291,34 @@ namespace ODTablet
                     else if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None)|| CurrentAppMode == MapBoardMode.MultipleLenses)
                     {
                         DisplayLensSelectionMenu();
+                        if(RemoteLens == CurrentLocalLens)
+                        {
+                            DisplayRemoteLensInUseMsg();
+                        }
+                        else
+                        {
+                            RemoveRemoteLensInUseMsg();
+                        }
                     }
                 }));
         }
 
-        private void RemoteLensWasFreed()
+        private void RemoteLensWasFreed(Dictionary<string, dynamic> parsedMessage)
         {
-            RemoteLens = LensType.None;
+            RemoteLens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]["lens"]);
             this.Dispatcher.Invoke((Action)(() =>
             {
                 if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None) || CurrentAppMode == MapBoardMode.MultipleLenses)
                 {
                     DisplayLensSelectionMenu();
+                    if (RemoteLens == CurrentLocalLens)
+                    {
+                        RemoveRemoteLensInUseMsg();
+                        ActivateLens(CurrentLocalLens);
+                    }
                 }
             }));
+            RemoteLens = LensType.None;
         }
 
         # endregion

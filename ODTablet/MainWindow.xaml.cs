@@ -260,9 +260,8 @@ namespace ODTablet
                 RemoveLayerFromMap(CurrentLocalLens);
 
                 DisplayActivationMenu();
-
-                BroadcastFreedLens(aLensToKillFor);
-                SendRemoveLensModeMessage(CurrentLocalLens);
+                FreeLens(CurrentLocalLens);
+                //SendRemoveLensModeMessage(CurrentLocalLens); // TODO: Remove from overview
             }
         }
 
@@ -271,6 +270,10 @@ namespace ODTablet
             return ((CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses) && RemoteLens != lens);
         }
 
+        private void FreeLens(LensType lens)
+        {
+            BroadcastFreedLens(lens);
+        }
 
         #region ActivationMenu
         private StackPanel ActivationMenu;
@@ -601,9 +604,11 @@ namespace ODTablet
             if (aLensToKillFor != LensType.None)
             {
                 Board.RemoveLens(aLensToKillFor);
+                FreeLens(aLensToKillFor);
             }
-
+            
             LensType lens = MapBoard.StringToLensType(((Button)sender).Name);
+            FreeLens(CurrentLocalLens);
             LoadLens(lens);
         }
 
@@ -1252,6 +1257,7 @@ namespace ODTablet
                         if(lens != RemoteLens)
                         {
                             RemoteLens = lens;
+                            DisplayLensSelectionMenu();
                         }
                     }));
                 }
@@ -1305,20 +1311,24 @@ namespace ODTablet
 
         private void RemoteLensWasFreed(Dictionary<string, dynamic> parsedMessage)
         {
-            RemoteLens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]["lens"]);
+            LensType fLens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]["lens"]);
             this.Dispatcher.Invoke((Action)(() =>
             {
                 if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None) || CurrentAppMode == MapBoardMode.MultipleLenses)
                 {
-                    DisplayLensSelectionMenu();
-                    if (RemoteLens == CurrentLocalLens)
+                    if (fLens == CurrentLocalLens)
                     {
                         RemoveRemoteLensInUseMsg();
+                        RemoteLens = LensType.None;
                         ActivateLens(CurrentLocalLens);
+                    }
+                    else
+                    {
+                        RemoteLens = LensType.None;
+                        DisplayLensSelectionMenu();
                     }
                 }
             }));
-            RemoteLens = LensType.None;
         }
 
         # endregion

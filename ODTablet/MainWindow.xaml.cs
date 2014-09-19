@@ -1137,7 +1137,7 @@ namespace ODTablet
         {
             Dictionary<string, string> dict = new Dictionary<string, string>();
             dict.Add("lens", lensT.ToString());
-            SoD.SendEventToDevices("LensStarted", dict, "all");
+            SoD.SendEventToDevices("FreedLens", dict, "all");
         }
 
         private void SendRemoveLensModeMessage(LensType lensT)

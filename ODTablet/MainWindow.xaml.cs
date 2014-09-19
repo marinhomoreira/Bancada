@@ -225,29 +225,30 @@ namespace ODTablet
         {
             if (LensCanBeActivated(lens))
             {
+                RemoveRemoteLensInUseMsg();
                 CurrentLocalLens = lens;
                 aLensToKillFor = LensType.None; // if you don't do this, it will keep the last one and everytime you change a lens it will destroy the last one.
                 DisplayBaseMap();
                 AddLayerToMap(lens);
                 LensMap.IsHitTestVisible = true;
                 DisplayLensSelectionMenu();
-                LayoutRoot.Children.Remove(DeactivatedLensMsg);
-                DisplayActivationMenu(); // TODO
+                RemoveDeactivatedMsg();
+                DisplayActivationMenu();
                 DisplayCurrentLensLabel();
-                Board.BringToFront(lens); // TODO: Bring to front event!
                 BroadcastStartLens(lens);
                 BroadcastExtent(lens, Board.GetLens(lens).Extent);
-                // TODO: block other devices event
                 return;
             }
             else if (!LensCanBeActivated(lens) && RemoteLens == lens)
             {
-                // TODO: Display remote is using lens msg
+                DisplayRemoteLensInUseMsg();
+                DisplayBaseMap();
+                DisplayLensSelectionMenu();
             }
-            CurrentLocalLens = LensType.None;
-            DisplayBaseMap();
-            DisplayLensSelectionMenu();
         }
+
+
+        
 
         LensType aLensToKillFor = LensType.None;
 
@@ -308,12 +309,12 @@ namespace ODTablet
 
                 ConfigureActivationMenu();
 
-                if ((!ActivationMenu.Children.Contains(DeactivateLensButton) || ActivationMenu.Children.Contains(ActivateLensButton)) && !LayoutRoot.Children.Contains(DeactivatedLensMsg))
+                if ((!ActivationMenu.Children.Contains(DeactivateLensButton) || ActivationMenu.Children.Contains(ActivateLensButton)) && !MsgsPanel.Children.Contains(DeactivatedLensMsg))
                 {
                     ActivationMenu.Children.Remove(ActivateLensButton);
                     ActivationMenu.Children.Add(DeactivateLensButton);
                 }
-                else if ((ActivationMenu.Children.Contains(DeactivateLensButton) || !ActivationMenu.Children.Contains(ActivateLensButton)) && LayoutRoot.Children.Contains(DeactivatedLensMsg))
+                else if ((ActivationMenu.Children.Contains(DeactivateLensButton) || !ActivationMenu.Children.Contains(ActivateLensButton)) && MsgsPanel.Children.Contains(DeactivatedLensMsg))
                 {
                     ActivationMenu.Children.Remove(DeactivateLensButton);
                     ActivationMenu.Children.Add(ActivateLensButton);
@@ -335,6 +336,9 @@ namespace ODTablet
         }
         #endregion
 
+
+        private StackPanel MsgsPanel = new StackPanel() { HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center};
+
         #region Deactivated msg
         private Label DeactivatedLensMsg;
         private void ConfigureDeactivatedMsg()
@@ -355,12 +359,66 @@ namespace ODTablet
         private void DisplayDeactivatedMsg()
         {
             ConfigureDeactivatedMsg();
-            if (!LayoutRoot.Children.Contains(DeactivatedLensMsg))
+            if (!LayoutRoot.Children.Contains(MsgsPanel))
             {
-                LayoutRoot.Children.Add(DeactivatedLensMsg);
+                Canvas.SetZIndex(MsgsPanel, 99);
+                LayoutRoot.Children.Add(MsgsPanel);
+            }
+            if (!MsgsPanel.Children.Contains(DeactivatedLensMsg))
+            {
+                MsgsPanel.Children.Add(DeactivatedLensMsg);
+            }
+        }
+
+        private void RemoveDeactivatedMsg()
+        {
+            if (MsgsPanel.Children.Contains(DeactivatedLensMsg))
+            {
+                MsgsPanel.Children.Remove(DeactivatedLensMsg);
             }
         }
         #endregion
+
+        #region RemoteLensInUse msg
+        private Label RemoteLensInUseMsg;
+        private void ConfigureRemoteLensInUseMsg()
+        {
+            if (RemoteLensInUseMsg == null)
+            {
+                RemoteLensInUseMsg = new Label();
+                RemoteLensInUseMsg.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                RemoteLensInUseMsg.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+                RemoteLensInUseMsg.FontWeight = FontWeights.Bold;
+                RemoteLensInUseMsg.FontSize = 60;
+                RemoteLensInUseMsg.BorderBrush = Brushes.Black;
+                Grid.SetZIndex(RemoteLensInUseMsg, 100);
+            }
+            RemoteLensInUseMsg.Content = RemoteLens + " being used remotely. Deactivate there first.";
+        }
+
+        private void DisplayRemoteLensInUseMsg()
+        {
+            ConfigureRemoteLensInUseMsg();
+            if (!LayoutRoot.Children.Contains(MsgsPanel))
+            {
+                Canvas.SetZIndex(MsgsPanel, 99);
+                LayoutRoot.Children.Add(MsgsPanel);
+            }
+            if (!MsgsPanel.Children.Contains(RemoteLensInUseMsg))
+            {
+                MsgsPanel.Children.Add(RemoteLensInUseMsg);
+            }
+        }
+        private void RemoveRemoteLensInUseMsg()
+        {
+            if (MsgsPanel.Children.Contains(RemoteLensInUseMsg))
+            {
+                MsgsPanel.Children.Remove(RemoteLensInUseMsg);
+            }
+        }
+
+        #endregion
+
         # endregion
         
         # region LensMap

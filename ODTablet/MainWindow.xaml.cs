@@ -648,28 +648,27 @@ namespace ODTablet
         private Button CreateLensButton(string content, RoutedEventHandler reh)
         {
             LensType l = MapBoard.StringToLensType(content);
-
             Button b = new Button();
             
-            b.Content = content;
-            b.Name = content;
-            b.Width = 100;
-            b.Height = 50;
-            b.Click += reh;
-            b.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
-            b.Foreground = Brushes.Black;
-
             if (Board != null && Board.LensCanBeActivated(content))
             {
+                b.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                b.Foreground = Brushes.Black;
+                b.Width = 100;
+                b.Height = 50;
+                b.Name = content;
+
                 if (LensCanBeActivated(l))
                 {
+                    b.Content = content;
+                    b.Click += reh;
                     if (CurrentLocalLens == l)
                     {
                         b.Background = VFColorDic[l][0];
-                        b.BorderBrush = Brushes.Black;
-                        b.BorderThickness = new Thickness(3);
+                        //b.BorderBrush = Brushes.Black;
+                        b.BorderThickness = new Thickness(2);
                         b.Foreground = (l == LensType.Cities) ? Brushes.White : Brushes.Black;
-                        //b.Margin = new Thickness() { Left = 15 };
+                        b.Margin = new Thickness() { Left = 5 };
                     }
                     else
                     {
@@ -678,8 +677,9 @@ namespace ODTablet
                 }
                 else
                 {
+                    b.Content = "Unavailable";
                     b.Background = Brushes.Gray;
-                    b.BorderBrush = Brushes.White;
+                    //b.BorderBrush = Brushes.Black;
                 }
             }
             return b;
@@ -1350,21 +1350,17 @@ namespace ODTablet
         private void RemoteLensWasFreed(Dictionary<string, dynamic> parsedMessage)
         {
             LensType fLens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]["lens"]);
+            RemoteLens = LensType.None;
             this.Dispatcher.Invoke((Action)(() =>
             {
-                if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None) || CurrentAppMode == MapBoardMode.MultipleLenses)
+                if (CurrentAppMode == MapBoardMode.Overview)
                 {
-                    if (fLens == CurrentLocalLens)
-                    {
-                        RemoveRemoteLensInUseMsg();
-                        RemoteLens = LensType.None;
-                        ActivateLens(CurrentLocalLens);
-                    }
-                    else
-                    {
-                        RemoteLens = LensType.None;
-                        DisplayLensSelectionMenu();
-                    }
+                    Board.RemoveLens(fLens);
+                }
+                else if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None) || CurrentAppMode == MapBoardMode.MultipleLenses)
+                {
+                    RemoveRemoteLensInUseMsg();
+                    DisplayLensSelectionMenu();
                 }
             }));
         }

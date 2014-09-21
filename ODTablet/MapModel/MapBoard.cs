@@ -213,10 +213,14 @@ namespace ODTablet.MapModel
         }
 
 
-        internal void BringToFront(LensType CurrentLens)
+        internal void BringToFront(LensType lens)
         {
-            _lensStack.Remove(CurrentLens);
-            UpdateZIndex(CurrentLens, (int?)null);
+            if (!LensIsActive(lens))
+            {
+                StartLens(lens);
+            }
+            _lensStack.Remove(lens);
+            UpdateZIndex(lens, (int?)null);
         }
 
         # endregion

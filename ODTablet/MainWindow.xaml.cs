@@ -72,10 +72,8 @@ namespace ODTablet
             switch (CurrentAppMode)
             {
                 case MapBoardMode.SingleLens:
-                    LoadSingleLensMode();
-                    break;
                 case MapBoardMode.MultipleLenses:
-                    LoadMultipleLensMode();
+                    StartLensMode();
                     break;
                 case MapBoardMode.Overview:
                     LoadOverviewMode();
@@ -101,7 +99,7 @@ namespace ODTablet
             ConfigureBoard();
             LoadMode(CurrentAppMode);
 
-            if (CurrentAppMode == MapBoardMode.SingleLens && l != LensType.None)
+            if (CurrentAppMode == MapBoardMode.SingleLens && l != LensType.None) // TODO: THIS DOESN'T WORK!
             {
                 BuildSingleLensUI(l);
                 DeactivateCurrentLens();
@@ -166,17 +164,24 @@ namespace ODTablet
         # endregion
 
 
-        # region SingleLensMode
-        private void LoadSingleLensMode()
+
+        # region LensMode - SL/ML
+
+        private void StartLensMode()
         {
-            DetailWindow.Title = "Detail";
+            DetailWindow.Title = "Bancada: " + CurrentAppMode + "Mode";
             ClearUI();
             DisplayLensSelectionMenu();
+            ResetBaseMap();
+        }
+
+        private void BuildMultipleLensUI(LensType lens)
+        {
+            ActivateLens(lens);
         }
 
         private void BuildSingleLensUI(LensType lens)
         {
-            ClearUI();
             Board = new MapBoard();
             ActivateLens(lens);
         }
@@ -184,61 +189,47 @@ namespace ODTablet
         # endregion
 
 
-        # region MultipleLensMode
-        private void LoadMultipleLensMode()
-        {
-            DetailWindow.Title = "Detail";
-            ClearUI();
-            DisplayLensSelectionMenu();
-        }
-
-        private void BuildMultipleLensUI(LensType lens)
-        {
-            if(!LayoutRoot.Children.Contains(LensMap))
-            {
-                ClearUI();
-            }
-            ActivateLens(lens);
-        }
-        # endregion
-
-
         # region Operations with Lenses - SL and ML
 
-        private void LoadLens(LensType lens)
+        LensType aLensToKillFor = LensType.None;
+
+        private void Selected(LensType lens)
         {
-            switch (CurrentAppMode)
+            if (lens != CurrentLocalLens)
             {
-                case MapBoardMode.SingleLens:
-                    BuildSingleLensUI(lens);
-                    break;
-                case MapBoardMode.MultipleLenses:
-                    BuildMultipleLensUI(lens);
-                    break;
-                default:
-                    break;
+                ActivateLens(lens);
+            }
+            else
+            {
+                DeactivateCurrentLens();
             }
         }
-
-        # region Activate/Deactivate
 
         private void ActivateLens(LensType lens)
         {
             if (LensCanBeActivated(lens))
             {
-                CurrentLocalLens = lens;
                 aLensToKillFor = LensType.None; // if you don't do this, it will keep the last one and everytime you change a lens it will destroy the last one.
+
+                CurrentLocalLens = lens;
+                
+                // MAP
                 DisplayBaseMap();
                 AddLayerToMap(lens);
                 LensMap.IsHitTestVisible = true;
+                
+                // MENUS
                 DisplayLensSelectionMenu();
+                DisplayRightSideMenu();
+                //DisplayCurrentLensLabel();
+                
+                // MSGS
                 RemoveRemoteLensInUseMsg();
                 RemoveDeactivatedMsg();
-                DisplayActivationMenu();
-                DisplayCurrentLensLabel();
-                BroadcastStartLens(lens);
+                
+                // SEND EVENTS!
+                BroadcastStartLensEvent(lens);
                 BroadcastExtent(lens, Board.GetLens(lens).Extent);
-                return;
             }
             else if (!LensCanBeActivated(lens) && RemoteLens == lens)
             {
@@ -248,21 +239,30 @@ namespace ODTablet
             }
         }
 
-        LensType aLensToKillFor = LensType.None;
-
         private void DeactivateCurrentLens()
         {
             if (CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses)
             {
                 aLensToKillFor = CurrentLocalLens;
+                CurrentLocalLens = LensType.None;
 
-                DisplayDeactivatedMsg();
+                // MAP
                 LensMap.IsHitTestVisible = false;
-                RemoveLayerFromMap(CurrentLocalLens);
+                RemoveLayerFromMap(aLensToKillFor);
 
-                DisplayActivationMenu();
-                FreeLens(CurrentLocalLens);
-                //SendRemoveLensModeMessage(CurrentLocalLens); // TODO: Remove from overview
+                //MENUS
+                DisplayLensSelectionMenu();
+                DisplayRightSideMenu();
+
+                // MSGS
+                DisplayDeactivatedMsg(); // TODO: REMOVE THIS WHEN DONE!
+
+                // SEND EVENTS!
+                BroadcastFreeLensEvent(aLensToKillFor); // TODO: TEST THIS!
+                if(CurrentAppMode == MapBoardMode.SingleLens)
+                {
+                    BroadcastRemoveLensMessage(aLensToKillFor);
+                }
             }
         }
 
@@ -271,159 +271,16 @@ namespace ODTablet
             return ((CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses) && RemoteLens != lens);
         }
 
-        private void FreeLens(LensType lens)
+        private void EraseCurrentLens()
         {
-            BroadcastFreedLens(lens);
-        }
-
-        #region ActivationMenu
-        private StackPanel ActivationMenu;
-        Button ActivateLensButton, DeactivateLensButton;
-
-        private void ConfigureActivationMenu()
-        {
-            if (ActivationMenu == null)
-            {
-                ActivationMenu = new StackPanel()
-                {
-                    Name = "ActivationMenu"
-                };
-
-                Canvas.SetZIndex(ActivationMenu, 99);
-                ActivationMenu.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
-                ActivationMenu.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-                ActivationMenu.Orientation = Orientation.Horizontal;
-            }
-
-            if (DeactivateLensButton == null) DeactivateLensButton = CreateRegularButton("Remove", Deactivate_Click);
-            if (ActivateLensButton == null) ActivateLensButton = CreateRegularButton("Activate", Activate_Click);
-        }
-
-        private void DisplayActivationMenu()
-        {
-            if ((CurrentAppMode == MapBoardMode.MultipleLenses || CurrentAppMode == MapBoardMode.SingleLens) && LensMap != null)
-            {
-                if (LayoutRoot.Children.Contains(ActivationMenu))
-                {
-                    LayoutRoot.Children.Remove(ActivationMenu);
-                }
-
-                ConfigureActivationMenu();
-
-                if ((!ActivationMenu.Children.Contains(DeactivateLensButton) || ActivationMenu.Children.Contains(ActivateLensButton)) && !MsgsPanel.Children.Contains(DeactivatedLensMsg))
-                {
-                    ActivationMenu.Children.Remove(ActivateLensButton);
-                    ActivationMenu.Children.Add(DeactivateLensButton);
-                }
-                else if ((ActivationMenu.Children.Contains(DeactivateLensButton) || !ActivationMenu.Children.Contains(ActivateLensButton)) && MsgsPanel.Children.Contains(DeactivatedLensMsg))
-                {
-                    ActivationMenu.Children.Remove(DeactivateLensButton);
-                    ActivationMenu.Children.Add(ActivateLensButton);
-                }
-                LayoutRoot.Children.Add(ActivationMenu);
-            }
-        }
-
-        private void Deactivate_Click(object sender, RoutedEventArgs e)
-        {
-            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
+            aLensToKillFor = CurrentLocalLens;
             DeactivateCurrentLens();
+            Board.RemoveLens(aLensToKillFor);
+            BroadcastRemoveLensMessage(aLensToKillFor);
+            ResetBaseMap();
         }
 
-        private void Activate_Click(object sender, RoutedEventArgs e)
-        {
-            // This button is only available if in Multi/Singlelens mode and the behavior is the same.
-            ActivateLens(CurrentLocalLens);
-        }
-        #endregion
 
-
-        private StackPanel MsgsPanel = new StackPanel() { HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center};
-
-        #region Deactivated msg
-        private Label DeactivatedLensMsg;
-        private void ConfigureDeactivatedMsg()
-        {
-            if (DeactivatedLensMsg == null)
-            {
-                DeactivatedLensMsg = new Label();
-                DeactivatedLensMsg.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                DeactivatedLensMsg.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                DeactivatedLensMsg.FontWeight = FontWeights.Bold;
-                DeactivatedLensMsg.FontSize = 60;
-                DeactivatedLensMsg.BorderBrush = Brushes.Black;
-                Grid.SetZIndex(DeactivatedLensMsg, 100);
-            }
-            DeactivatedLensMsg.Content = CurrentLocalLens + " removed.\nPress Activate to place it on top.";
-        }
-
-        private void DisplayDeactivatedMsg()
-        {
-            ConfigureDeactivatedMsg();
-            if (!LayoutRoot.Children.Contains(MsgsPanel))
-            {
-                Canvas.SetZIndex(MsgsPanel, 99);
-                LayoutRoot.Children.Add(MsgsPanel);
-            }
-            if (!MsgsPanel.Children.Contains(DeactivatedLensMsg))
-            {
-                MsgsPanel.Children.Clear();
-                MsgsPanel.Children.Add(DeactivatedLensMsg);
-            }
-        }
-
-        private void RemoveDeactivatedMsg()
-        {
-            if (MsgsPanel.Children.Contains(DeactivatedLensMsg))
-            {
-                MsgsPanel.Children.Remove(DeactivatedLensMsg);
-            }
-        }
-        #endregion
-
-        #region RemoteLensInUse msg
-        private Label RemoteLensInUseMsg;
-        private void ConfigureRemoteLensInUseMsg()
-        {
-            if (RemoteLensInUseMsg == null)
-            {
-                RemoteLensInUseMsg = new Label();
-                RemoteLensInUseMsg.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
-                RemoteLensInUseMsg.VerticalAlignment = System.Windows.VerticalAlignment.Center;
-                RemoteLensInUseMsg.FontWeight = FontWeights.Bold;
-                RemoteLensInUseMsg.FontSize = 60;
-                RemoteLensInUseMsg.BorderBrush = Brushes.Black;
-                Grid.SetZIndex(RemoteLensInUseMsg, 100);
-            }
-            RemoteLensInUseMsg.Content = RemoteLens + " being used remotely. Deactivate there first.";
-        }
-
-        private void DisplayRemoteLensInUseMsg()
-        {
-            ConfigureRemoteLensInUseMsg();
-            if (!LayoutRoot.Children.Contains(MsgsPanel))
-            {
-                Canvas.SetZIndex(MsgsPanel, 99);
-                LayoutRoot.Children.Add(MsgsPanel);
-            }
-            if (!MsgsPanel.Children.Contains(RemoteLensInUseMsg))
-            {
-                MsgsPanel.Children.Clear();
-                MsgsPanel.Children.Add(RemoteLensInUseMsg);
-            }
-        }
-        private void RemoveRemoteLensInUseMsg()
-        {
-            if (MsgsPanel.Children.Contains(RemoteLensInUseMsg))
-            {
-                MsgsPanel.Children.Remove(RemoteLensInUseMsg);
-            }
-        }
-
-        #endregion
-
-        # endregion
-        
         # region LensMap
 
         private Map LensMap;
@@ -432,7 +289,14 @@ namespace ODTablet
         LensType CurrentLocalLens = LensType.None;
         LensType RemoteLens = LensType.None;
 
-        private void ResetLensMap()
+        private void ResetBaseMap()
+        {
+            DisplayBaseMap();
+            CleanMap();
+            LensMap.Extent = MapBoard.InitialExtentFrom(LensType.Cities);
+        }
+
+        private void ConfigureBaseMap()
         {
             if (LensMap == null)
             {
@@ -452,7 +316,7 @@ namespace ODTablet
                 LensMap.Layers[0].ID = LensType.Basemap.ToString();
             }
             LensMap.IsHitTestVisible = false;
-            CleanMap();
+            Grid.SetZIndex(LensMap, 1);
         }
 
         private void CleanMap()
@@ -472,20 +336,22 @@ namespace ODTablet
 
         private void LensMap_ExtentChanging(object sender, ExtentEventArgs e)
         {
-            Board.GetLens(CurrentLocalLens).Extent = e.NewExtent;
-            BroadcastExtent(CurrentLocalLens, e.NewExtent);
+            if(CurrentLocalLens != LensType.None)
+            {
+                Board.GetLens(CurrentLocalLens).Extent = e.NewExtent;
+                BroadcastExtent(CurrentLocalLens, e.NewExtent);
+            }
         }
 
         void LensMap_Loaded(object sender, RoutedEventArgs e)
         {
-            //TODO send event saying lens was loaded
-            SendBringToFrontEvent();
+            // MEH!
         }
 
         private void DisplayBaseMap()
         {
-            ResetLensMap();
-            Grid.SetZIndex(LensMap, 1);
+            ConfigureBaseMap();
+            CleanMap();
             if(!LayoutRoot.Children.Contains(LensMap))
             {
                 LayoutRoot.Children.Add(LensMap);
@@ -509,7 +375,7 @@ namespace ODTablet
             {
                 legend = new ESRI.ArcGIS.Client.Toolkit.Legend();
                 legend.Map = LensMap;
-                legend.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                legend.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
                 legend.VerticalAlignment = System.Windows.VerticalAlignment.Bottom;
                 legend.LayerIDs = new string[] { lens.ToString() };
                 legend.LayerItemsMode = ESRI.ArcGIS.Client.Toolkit.Legend.Mode.Flat;
@@ -536,6 +402,8 @@ namespace ODTablet
         # endregion
 
 
+        private StackPanel MsgsPanel = new StackPanel() { HorizontalAlignment = System.Windows.HorizontalAlignment.Center, VerticalAlignment = System.Windows.VerticalAlignment.Center };
+
         #region CurrentLensLabel
         Label CurrentLensLabel = new Label();
         private void DisplayCurrentLensLabel()
@@ -555,27 +423,189 @@ namespace ODTablet
         }
         #endregion
 
-        private void SendBringToFrontEvent()
+        #region Deactivated msg
+        private Label DeactivatedLensMsg;
+        private void DisplayDeactivatedMsg()
         {
-            // TODO : IMPLEMENT!
-
-        }
-
-        # region Lens Selection Menu
-        private StackPanel LensSelectionMenu;
-        private void DisplayLensSelectionMenu()
-        {
-            ConfigureLensSelectionMenu();
-            if (!LayoutRoot.Children.Contains(LensSelectionMenu) && (CurrentAppMode == MapBoardMode.MultipleLenses || (CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None)))
+            if (DeactivatedLensMsg == null)
             {
-                LensSelectionMenu.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
-                LensSelectionMenu.VerticalAlignment = System.Windows.VerticalAlignment.Top;
-                Canvas.SetZIndex(LensSelectionMenu, 99);
-                LayoutRoot.Children.Add(LensSelectionMenu);
+                DeactivatedLensMsg = new Label();
+                DeactivatedLensMsg.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                DeactivatedLensMsg.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+                DeactivatedLensMsg.FontWeight = FontWeights.Bold;
+                DeactivatedLensMsg.FontSize = 60;
+                DeactivatedLensMsg.BorderBrush = Brushes.Black;
+                Grid.SetZIndex(DeactivatedLensMsg, 100);
+            }
+            if (CurrentAppMode == MapBoardMode.MultipleLenses)
+            {
+                DeactivatedLensMsg.Content = "Select a lens.";
+            }
+            else if(CurrentAppMode == MapBoardMode.SingleLens)
+            {
+                DeactivatedLensMsg.Content = "Press the lens button to activate.";
+            }
+
+            if (!LayoutRoot.Children.Contains(MsgsPanel))
+            {
+                Canvas.SetZIndex(MsgsPanel, 99);
+                LayoutRoot.Children.Add(MsgsPanel);
+            }
+            if (!MsgsPanel.Children.Contains(DeactivatedLensMsg))
+            {
+                MsgsPanel.Children.Clear();
+                MsgsPanel.Children.Add(DeactivatedLensMsg);
             }
         }
 
-        private void ConfigureLensSelectionMenu()
+        private void RemoveDeactivatedMsg()
+        {
+            if (MsgsPanel.Children.Contains(DeactivatedLensMsg))
+            {
+                MsgsPanel.Children.Remove(DeactivatedLensMsg);
+            }
+        }
+        #endregion
+
+        #region RemoteLensInUse msg
+        private Label RemoteLensInUseMsg;
+        private void DisplayRemoteLensInUseMsg()
+        {
+            if (RemoteLensInUseMsg == null)
+            {
+                RemoteLensInUseMsg = new Label();
+                RemoteLensInUseMsg.HorizontalAlignment = System.Windows.HorizontalAlignment.Center;
+                RemoteLensInUseMsg.VerticalAlignment = System.Windows.VerticalAlignment.Center;
+                RemoteLensInUseMsg.FontWeight = FontWeights.Bold;
+                RemoteLensInUseMsg.FontSize = 60;
+                RemoteLensInUseMsg.BorderBrush = Brushes.Black;
+                Grid.SetZIndex(RemoteLensInUseMsg, 100);
+            }
+            RemoteLensInUseMsg.Content = RemoteLens + " being used remotely. Deactivate there first.";
+
+            if (!LayoutRoot.Children.Contains(MsgsPanel))
+            {
+                Canvas.SetZIndex(MsgsPanel, 99);
+                LayoutRoot.Children.Add(MsgsPanel);
+            }
+            if (!MsgsPanel.Children.Contains(RemoteLensInUseMsg))
+            {
+                MsgsPanel.Children.Clear();
+                MsgsPanel.Children.Add(RemoteLensInUseMsg);
+            }
+        }
+        private void RemoveRemoteLensInUseMsg()
+        {
+            if (MsgsPanel.Children.Contains(RemoteLensInUseMsg))
+            {
+                MsgsPanel.Children.Remove(RemoteLensInUseMsg);
+            }
+        }
+
+        #endregion
+
+
+        #region RightSideMenu
+        private StackPanel RightSideMenu;
+        Button EraseLensButton, BringToFrontButton;
+        private void ConfigureActivationMenu()
+        {
+            if (RightSideMenu == null)
+            {
+                RightSideMenu = new StackPanel()
+                {
+                    Name = "RightSideMenu"
+                };
+
+                Canvas.SetZIndex(RightSideMenu, 99);
+                RightSideMenu.HorizontalAlignment = System.Windows.HorizontalAlignment.Right;
+                RightSideMenu.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                RightSideMenu.Orientation = Orientation.Vertical;
+            }
+
+            if (EraseLensButton == null) EraseLensButton = CreateActivationButton("Erase", Erase_Click);
+            if (BringToFrontButton == null) BringToFrontButton = CreateActivationButton("Bring To Front", BringToFront_Click);
+        }
+
+        private Button CreateActivationButton(string content, RoutedEventHandler reh)
+        {
+            Button b = new Button();
+            b.Content = content;
+            b.Width = 100;
+            b.Height = 50;
+            b.Click += reh;
+            b.Background = Brushes.White;
+            b.BorderBrush = Brushes.Black;
+
+            if (content.Equals("Erase"))
+            {
+                b.Background = Brushes.Red;
+                b.Foreground = Brushes.White;
+                b.Margin = new Thickness() { Bottom = 10 };
+            }
+
+            return b;
+        }
+
+        private void DisplayRightSideMenu()
+        {
+            if ((CurrentAppMode == MapBoardMode.MultipleLenses || CurrentAppMode == MapBoardMode.SingleLens) && CurrentLocalLens != LensType.None)
+            {
+                ConfigureActivationMenu();
+
+                if (!RightSideMenu.Children.Contains(EraseLensButton))
+                {
+                    RightSideMenu.Children.Add(EraseLensButton);
+                }
+
+                if (!RightSideMenu.Children.Contains(BringToFrontButton))
+                {
+                    RightSideMenu.Children.Add(BringToFrontButton);
+                }
+
+                if (!LayoutRoot.Children.Contains(RightSideMenu))
+                {
+                    LayoutRoot.Children.Add(RightSideMenu);
+                }
+            }
+            else
+            {
+                if (LayoutRoot.Children.Contains(RightSideMenu))
+                {
+                    LayoutRoot.Children.Remove(RightSideMenu);
+                }
+            }
+        }
+
+        private void Erase_Click(object sender, RoutedEventArgs e)
+        {
+            EraseCurrentLens();
+        }
+
+        private void BringToFront_Click(object sender, RoutedEventArgs e)
+        {
+            SendBringToFrontEvent();
+        }
+
+
+        #endregion
+
+        # region Lens Selection Menu
+        private StackPanel LensSelectionMenu;
+        static SolidColorBrush[] Satellite = new SolidColorBrush[] { Brushes.Green, Brushes.LightGreen };
+        static SolidColorBrush[] Streets = new SolidColorBrush[] { Brushes.Red, Brushes.Pink };
+        static SolidColorBrush[] Population = new SolidColorBrush[] { Brushes.Yellow, Brushes.LightYellow };
+        static SolidColorBrush[] ElecDict = new SolidColorBrush[] { Brushes.Black, Brushes.DarkGray };
+        static SolidColorBrush[] Cities = new SolidColorBrush[] { Brushes.Blue, Brushes.LightBlue };
+        Dictionary<LensType, SolidColorBrush[]> VFColorDic = new Dictionary<LensType, SolidColorBrush[]>() {
+                {LensType.Satellite, Satellite},
+                {LensType.Streets, Streets},
+                {LensType.Population, Population},
+                {LensType.ElectoralDistricts, ElecDict},
+                {LensType.Cities, Cities},
+            };
+
+        private void DisplayLensSelectionMenu()
         {
             if (LensSelectionMenu == null)
             {
@@ -585,68 +615,50 @@ namespace ODTablet
                 };
             }
             LensSelectionMenu.Children.Clear();
-            AddLensSelectionButtons(LensType.Cities);
+
+            AddButtonFor(LensType.Cities);
             //AddLensSelectionButtons(LensType.ElectoralDistricts);
-            AddLensSelectionButtons(LensType.Population);
-            AddLensSelectionButtons(LensType.Streets);
-            AddLensSelectionButtons(LensType.Satellite);
-        }
-
-        private void AddLensSelectionButtons(LensType lens)
-        {
-            LensSelectionMenu.Children.Add(CreateLensButton(lens.ToString(), LensSelectionButton_Click));
-        }
-
-        private void LensSelectionButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (aLensToKillFor != LensType.None)
-            {
-                Board.RemoveLens(aLensToKillFor);
-                FreeLens(aLensToKillFor);
-            }
+            AddButtonFor(LensType.Population);
+            AddButtonFor(LensType.Streets);
+            //AddButtonFor(LensType.Satellite);
             
-            LensType lens = MapBoard.StringToLensType(((Button)sender).Name);
-
-            FreeLens(CurrentLocalLens);
-            LoadLens(lens);
+            if (!LayoutRoot.Children.Contains(LensSelectionMenu) && (CurrentAppMode == MapBoardMode.MultipleLenses || CurrentAppMode == MapBoardMode.SingleLens))
+            {
+                LensSelectionMenu.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+                LensSelectionMenu.VerticalAlignment = System.Windows.VerticalAlignment.Top;
+                LensSelectionMenu.Margin = new Thickness() { Top = 10 };
+                Canvas.SetZIndex(LensSelectionMenu, 99);
+                LayoutRoot.Children.Add(LensSelectionMenu);
+            }
         }
 
-
-        static SolidColorBrush[] Satellite = new SolidColorBrush[] { Brushes.Green, Brushes.LightGreen };
-        static SolidColorBrush[] Streets = new SolidColorBrush[] { Brushes.Red, Brushes.Pink };
-        static SolidColorBrush[] Population = new SolidColorBrush[] { Brushes.Yellow, Brushes.LightYellow };
-        static SolidColorBrush[] ElecDict = new SolidColorBrush[] { Brushes.Black, Brushes.DarkGray };
-        static SolidColorBrush[] Cities = new SolidColorBrush[] { Brushes.Blue, Brushes.LightBlue };
-
-        Dictionary<LensType, SolidColorBrush[]> VFColorDic = new Dictionary<LensType, SolidColorBrush[]>() {
-                {LensType.Satellite, Satellite},
-                {LensType.Streets, Streets},
-                {LensType.Population, Population},
-                {LensType.ElectoralDistricts, ElecDict},
-                {LensType.Cities, Cities},
-            };
+        private void AddButtonFor(LensType lens)
+        {
+            bool LensButtonCanBeAdded =
+                (CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None && (aLensToKillFor == LensType.None || aLensToKillFor == lens)) ||
+                (CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == lens) ||
+                (CurrentAppMode == MapBoardMode.MultipleLenses);
+            
+            if(LensButtonCanBeAdded)
+            {
+                LensSelectionMenu.Children.Add(CreateLensButton(lens.ToString(), LensSelectionButton_Click));
+            }
+        }
 
         private Button CreateLensButton(string content, RoutedEventHandler reh)
         {
             LensType l = MapBoard.StringToLensType(content);
 
-            //ControlTemplate ct = new ControlTemplate();
-            //ct.VisualTree = new FrameworkElementFactory(typeof(Button));
-
-            //Trigger t = new Trigger() { Property = Button.IsFocusedProperty, Value = true };
-            //Setter s = new Setter() { Property = Button.BackgroundProperty, Value = VFColorDic[l][0] };
-            //t.Setters.Add(s);
-            //ct.Triggers.Add(t);
-            //Trigger t1 = new Trigger() { Property = Button.IsMouseOverProperty, Value = true };
-            //t1.Setters.Add(s);
-            //ct.Triggers.Add(t1);
-
             Button b = new Button();
             
             b.Content = content;
+            b.Name = content;
             b.Width = 100;
             b.Height = 50;
             b.Click += reh;
+            b.HorizontalAlignment = System.Windows.HorizontalAlignment.Left;
+            b.Foreground = Brushes.Black;
+
             if (Board != null && Board.LensCanBeActivated(content))
             {
                 if (LensCanBeActivated(l))
@@ -654,6 +666,10 @@ namespace ODTablet
                     if (CurrentLocalLens == l)
                     {
                         b.Background = VFColorDic[l][0];
+                        b.BorderBrush = Brushes.Black;
+                        b.BorderThickness = new Thickness(3);
+                        b.Foreground = (l == LensType.Cities) ? Brushes.White : Brushes.Black;
+                        //b.Margin = new Thickness() { Left = 15 };
                     }
                     else
                     {
@@ -663,62 +679,26 @@ namespace ODTablet
                 else
                 {
                     b.Background = Brushes.Gray;
+                    b.BorderBrush = Brushes.White;
                 }
-
-
-                //b.TouchEnter += b_TouchDown;
-                b.GotFocus += b_TouchDown;
-                
-                //b.GotKeyboardFocus += b_TouchDown;
-                //b.GotMouseCapture += b_TouchDown;
-                //b.GotStylusCapture += b_TouchDown;
-                //b.GotTouchCapture += b_TouchDown;
-                //b.MouseEnter += b_TouchDown;
-                //b.PreviewMouseMove += b_TouchDown;
-                
-                //b.MouseLeave += b_LostFocus;
-                b.TouchUp += b_LostFocus;
-                //b.LostMouseCapture += b_LostFocus;
-                b.LostFocus += b_LostFocus;
-                //b.LostStylusCapture += b_LostFocus;
-                b.LostTouchCapture += b_LostFocus;
-
-                
-                
-                bool conditionToWhite = content.Equals(LensType.ElectoralDistricts.ToString()) || content.Equals(LensType.Cities.ToString());
-                b.Foreground = conditionToWhite ? Brushes.White : Brushes.Black;
-            }
-            try
-            {
-                b.Name = content;
-            }
-            catch (Exception exception)
-            {
-                b.BorderBrush = Brushes.Red;
-                Console.WriteLine("Fail: " + exception.Message);
             }
             return b;
         }
 
-        private void b_LostFocus(object sender, EventArgs e)
+        private void LensSelectionButton_Click(object sender, RoutedEventArgs e)
         {
-            LensType l = MapBoard.StringToLensType(((Button)sender).Content.ToString());
-            if(l != CurrentLocalLens)
-                ((Button)sender).Background = VFColorDic[l][1];
-        }
-
-        void b_TouchDown(object sender, EventArgs e)
-        {
-            LensType l = MapBoard.StringToLensType(((Button)sender).Content.ToString());
-            ((Button)sender).Background =  VFColorDic[l][0];
+            LensType lens = MapBoard.StringToLensType(((Button)sender).Name);
+            Selected(lens);
         }
 
         # endregion
 
-        
-
-
         # endregion
+
+
+
+
+
 
 
         # region OverviewMode
@@ -1221,10 +1201,6 @@ namespace ODTablet
             {
                 Dictionary<string, dynamic> parsedMessage = SoD.ParseMessageIntoDictionary(data);
                 String receivedString = (String)parsedMessage["data"]["data"];
-                if (receivedString.Equals("GetAllModes"))
-                {
-                    BroadcastAllActiveModes();
-                }
             });
 
             SoD.socket.On("dictionary", (dict) =>
@@ -1264,21 +1240,26 @@ namespace ODTablet
             }
         }
 
-        private void BroadcastStartLens(LensType lensT)
+        private void BroadcastStartLensEvent(LensType lensT)
         {
             Dictionary<string, string> dict = new Dictionary<string, string>();
             dict.Add("lens", lensT.ToString());
             SoD.SendEventToDevices("LensStarted", dict, "all");
         }
 
-        private void BroadcastFreedLens(LensType lensT)
+        private void SendBringToFrontEvent()
+        {
+            SoD.SendEventToDevices("BringLensToFront", CurrentLocalLens.ToString(), "all");
+        }
+
+        private void BroadcastFreeLensEvent(LensType lensT)
         {
             Dictionary<string, string> dict = new Dictionary<string, string>();
             dict.Add("lens", lensT.ToString());
             SoD.SendEventToDevices("FreedLens", dict, "all");
         }
 
-        private void SendRemoveLensModeMessage(LensType lensT)
+        private void BroadcastRemoveLensMessage(LensType lensT)
         {
             Console.WriteLine("Sending remove lensmodemsg");
             Dictionary<string, string> dict = new Dictionary<string, string>();
@@ -1288,12 +1269,12 @@ namespace ODTablet
 
         private void SendCompleteTaskMsg()
         {
-            SoD.SendStringToDevices("TaskCompleted", "all");
+            SoD.SendEventToDevices("TaskCompleted", null, "all");
         }
 
         private void SendStartTaskMsg()
         {
-            SoD.SendStringToDevices("TaskStarted", "all");
+            SoD.SendEventToDevices("TaskStarted", null, "all");
         }
 
         private void SendResetAppMessage()
@@ -1301,18 +1282,6 @@ namespace ODTablet
             Dictionary<string, string> dict = new Dictionary<string, string>();
             dict.Add("RemoveMode", LensType.All.ToString());
             SoD.SendDictionaryToDevices(dict, "all");
-        }
-
-        private void SendMsgToGetActiveModesFromTable()
-        {
-            SoD.SendStringToDevices("GetAllModes", "all");
-        }
-
-        private void BroadcastAllActiveModes()
-        {
-            Dictionary<string, string> dic = Board.ActiveLensesToDictionary();
-            dic.Add("TableActiveModes", "All");
-            SoD.SendDictionaryToDevices(dic, "all");
         }
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
@@ -1351,13 +1320,6 @@ namespace ODTablet
                     }
                     Board.RemoveLens(lens);
                 }));
-            }
-
-            //SYNCH
-            if (tableConfiguration != null && tableConfiguration.Equals("All") && CurrentAppMode == MapBoardMode.None)
-            {
-                Console.WriteLine("Dictionary with table config received!");
-                Board.ClearBoardAndStackLensesAccordingToOverview(parsedMessage["data"]["data"].ToObject<Dictionary<string, string>>());
             }
         }
 

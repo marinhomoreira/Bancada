@@ -75,28 +75,31 @@ namespace ODTablet.MapModel
         // What really matters starts here
         public void UpdateLens(LensType lens, Envelope extent)
         {
-            if (!LensIsActive(lens) && LensCanBeActivated(lens))
+            if (lens != LensType.None)
             {
-                if(extent != null) // TODO: ExtentIsValid()?
+                if (!LensIsActive(lens) && LensCanBeActivated(lens))
                 {
-                    _lensCollection.Add(lens, new LensFactory().CreateLens(lens, extent));
+                    if (extent != null) // TODO: ExtentIsValid()?
+                    {
+                        _lensCollection.Add(lens, new LensFactory().CreateLens(lens, extent));
+                    }
+                    else
+                    {
+                        _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
+                    }
+                    _lensStack.Add(lens);
+                    OnLensAdded(new LensEventArgs(lens));
                 }
                 else
                 {
-                    _lensCollection.Add(lens, new LensFactory().CreateLens(lens));
+                    if (!_lensCollection[lens].Extent.ToString().Equals(extent.ToString())) // TODO: Change this for something better!
+                    {
+                        _lensCollection[lens].Extent = extent;
+                        OnLensExtentUpdated(new LensEventArgs(lens));
+                    }
                 }
-                _lensStack.Add(lens);
-                OnLensAdded(new LensEventArgs(lens));
+                UpdateZIndex(lens, (string)null);
             }
-            else
-            {
-                if (!_lensCollection[lens].Extent.ToString().Equals(extent.ToString())) // TODO: Change this for something better!
-                {
-                    _lensCollection[lens].Extent = extent;
-                    OnLensExtentUpdated(new LensEventArgs(lens));
-                }
-            }
-            UpdateZIndex(lens, (string)null);
         }
 
         public void ClearBoardAndStackLensesAccordingToOverview(Dictionary<string, string> remoteDictionary)

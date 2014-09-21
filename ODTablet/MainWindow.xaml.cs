@@ -91,19 +91,9 @@ namespace ODTablet
 
         private void Reset()
         {
-            LensType l = LensType.None;
-            if (MainBoardUC != null)
-            {
-                l = MainBoardUC.CurrentLens;
-            }
+            DeactivateCurrentLens();
             ConfigureBoard();
             LoadMode(CurrentAppMode);
-
-            if (CurrentAppMode == MapBoardMode.SingleLens && l != LensType.None) // TODO: THIS DOESN'T WORK!
-            {
-                BuildSingleLensUI(l);
-                DeactivateCurrentLens();
-            }
         }
 
         # region Application Mode Menu
@@ -241,7 +231,7 @@ namespace ODTablet
 
         private void DeactivateCurrentLens()
         {
-            if (CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses)
+            if ((CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses) && CurrentLocalLens != LensType.None)
             {
                 aLensToKillFor = CurrentLocalLens;
                 CurrentLocalLens = LensType.None;

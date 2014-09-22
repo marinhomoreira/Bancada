@@ -1400,6 +1400,10 @@ namespace ODTablet
                             RemoveRemoteLensInUseMsg();
                         }
                     }
+                    else if (CurrentAppMode == MapBoardMode.Overview)
+                    {
+                        Board.BringToFront(RemoteLens);
+                    }
                 }));
         }
 

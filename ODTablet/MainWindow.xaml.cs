@@ -1140,7 +1140,7 @@ namespace ODTablet
         {
             // Configure and instantiate SOD object
             string address = "beastwin.marinhomoreira.com";
-            int port = 6666;
+            int port = 1666;
             SoD = new SOD(address, port);
         }
 

@@ -1211,37 +1211,33 @@ namespace ODTablet
 
             SoD.socket.On("TaskCompleted", (dict) =>
             {
-                CanInteract = false;
-                Reset();
+                this.TaskCompletedEvent();
             });
 
             SoD.socket.On("TaskStarted", (dict) =>
             {
-                CanInteract = true;
-                Reset();
+                this.TaskStartedEvent();
             });
 
             SoD.socket.On("StartSingleLensMode", (dict) =>
             {
-                CurrentAppMode = MapBoardMode.SingleLens;
-                CurrentLocalLens = LensType.None; // Should be able to assign which lens to which device?
-                Reset();
+                this.StartSingleLensModeEvent();
             });
 
             SoD.socket.On("StartMultipleLensMode", (dict) =>
             {
-                CurrentAppMode = MapBoardMode.MultipleLenses;
-                CurrentLocalLens = LensType.None;
-                Reset();
+                this.StartMultipleLensModeEvent();
             });
 
             // make the socket.io connection
             SoD.SocketConnect();
         }
 
+
         # endregion
 
         # region Remote I/O
+        #region Send
         private void BroadcastExtent(LensType lensT, Envelope extent)
         {
             try
@@ -1276,7 +1272,6 @@ namespace ODTablet
             dict.Add("lens", lensT.ToString());
             SoD.SendEventToDevices("FreedLens", dict, "all");
         }
-
         private void BroadcastRemoveLensMessage(LensType lensT)
         {
             Console.WriteLine("Sending remove lensmodemsg");
@@ -1301,6 +1296,12 @@ namespace ODTablet
             dict.Add("RemoveMode", LensType.All.ToString());
             SoD.SendDictionaryToDevices(dict, "all");
         }
+
+        #endregion
+
+
+        #region Input
+
 
         private void ProcessDictionary(Dictionary<string, dynamic> parsedMessage)
         {
@@ -1387,6 +1388,46 @@ namespace ODTablet
                 }
             }));
         }
+
+        private void TaskCompletedEvent()
+        {
+            this.Dispatcher.Invoke((Action)(() =>
+            {
+                CanInteract = false;
+                Reset();
+            }));
+        }
+
+        private void TaskStartedEvent()
+        {
+            this.Dispatcher.Invoke((Action)(() =>
+            {
+                CanInteract = true;
+                Reset();
+            }));
+        }
+
+        private void StartSingleLensModeEvent()
+        {
+            this.Dispatcher.Invoke((Action)(() =>
+            {
+                CurrentAppMode = MapBoardMode.SingleLens;
+                CurrentLocalLens = LensType.None; // Should be able to assign which lens to which device?
+                Reset();
+            }));
+        }
+
+        private void StartMultipleLensModeEvent()
+        {
+            this.Dispatcher.Invoke((Action)(() =>
+            {
+                CurrentAppMode = MapBoardMode.MultipleLenses;
+                CurrentLocalLens = LensType.None;
+                Reset();
+            }));
+        }
+
+        #endregion
 
         # endregion
 

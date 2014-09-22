@@ -32,6 +32,8 @@ namespace ODTablet
         private MapBoardMode CurrentAppMode = MapBoardMode.None;
         private MapBoard Board;
 
+        private string DeviceID = "1";
+
         public MainWindow()
         {
             InitializeComponent();
@@ -50,9 +52,7 @@ namespace ODTablet
             //Board.StartLens(LensType.Satellite);
             
             // SOD stuff
-            ConfigureSoD();
-            ConfigureDevice();
-            RegisterSoDEvents();
+            DealWithSoD();
         }
 
         private void ConfigureBoard()
@@ -81,6 +81,7 @@ namespace ODTablet
                 default:
                     break;
             }
+            DealWithSoD();
         }
         
         private void ClearCurrentMode()
@@ -190,6 +191,7 @@ namespace ODTablet
             {
                 DeactivateCurrentLens();
             }
+            DealWithSoD();
         }
 
         private void ActivateLens(LensType lens)
@@ -1136,32 +1138,83 @@ namespace ODTablet
 
         SOD SoD;
 
+        private void DealWithSoD()
+        {
+            if (SoD == null)
+            {
+                ConfigureSoD();
+                ConfigureDevice();
+                RegisterSoDEvents();
+                SoD.SocketConnect();
+            }
+            else
+            {
+                UpdateSoDDevice();
+            }
+        }
+
+        private void UpdateSoDDevice()
+        {
+            Dictionary<string, string> updated = new Dictionary<string, string>();
+
+            switch (CurrentAppMode)
+            {
+                case MapBoardMode.SingleLens:
+                    SoD.ownDevice.name = "SingleLens"+CurrentLocalLens.ToString();
+                    updated.Add("locationX", "1");
+                    updated.Add("locationY", "0");
+                    updated.Add("locationZ", "1");
+                    updated.Add("name", SoD.ownDevice.name);
+                    updated.Add("ID","3");
+                    break;
+                case MapBoardMode.MultipleLenses:
+                    SoD.ownDevice.name = "MultipleLens";
+                    updated.Add("locationX", "-1");
+                    updated.Add("locationY", "0");
+                    updated.Add("locationZ", "-1");
+                    updated.Add("name", SoD.ownDevice.name);
+                    updated.Add("ID","2");
+                    break;
+                case MapBoardMode.Overview:
+                    SoD.ownDevice.name = "Overview";
+                    updated.Add("locationX", "0");
+                    updated.Add("locationY", "0");
+                    updated.Add("locationZ", "0");
+                    updated.Add("name", SoD.ownDevice.name);
+                    updated.Add("ID","1");
+                    break;
+                default:
+                    break;
+            }
+            SoD.updateDeviceInfo(updated);
+        }
+
         private void ConfigureSoD()
         {
-            // Configure and instantiate SOD object
-            string address = "beastwin.marinhomoreira.com";
-            int port = 1666;
-            SoD = new SOD(address, port);
+            if (SoD == null)
+            {
+                // Configure and instantiate SOD object
+                string address = "beastwin.marinhomoreira.com";
+                int port = 1666;
+                SoD = new SOD(address, port);
+            }
         }
 
         private void ConfigureDevice()
         {
             // Configure device with its dimensions (mm), location in physical space (X, Y, Z in meters, from sensor), orientation (degrees), Field Of View (FOV. degrees) and name
-            double widthInMM = 10
-                , heightInMM = 10
+            double widthInMM = 500
+                , heightInMM = 500
                 , locationX = 0
                 , locationY = 0
                 , locationZ = 0;
             string deviceType = "BancadaDevice";
             bool stationary = true;
+
+            SoD.ownDevice.ID = DeviceID;
             SoD.ownDevice.SetDeviceInformation(widthInMM, heightInMM, locationX, locationY, locationZ, deviceType, stationary);
             SoD.ownDevice.orientation = 0;
-            SoD.ownDevice.FOV = 360;
-
-            // Name and ID of device - displayed in Locator
-            // TODO: Future: possible to look for devices using name, instead of ID.
-            SoD.ownDevice.ID = "69";
-            SoD.ownDevice.name = "BancadaDevice";
+            SoD.ownDevice.FOV = 0;
         }
 
         bool CanInteract = false;
@@ -1214,9 +1267,6 @@ namespace ODTablet
             {
                 this.StartMultipleLensModeEvent();
             });
-
-            // make the socket.io connection
-            SoD.SocketConnect();
         }
 
 

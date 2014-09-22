@@ -730,8 +730,8 @@ namespace ODTablet
             OverviewMenu = new StackPanel()
             {
                 Name = "Overview",
-                HorizontalAlignment = System.Windows.HorizontalAlignment.Left,
-                VerticalAlignment = System.Windows.VerticalAlignment.Top,
+                HorizontalAlignment = System.Windows.HorizontalAlignment.Center,
+                VerticalAlignment = System.Windows.VerticalAlignment.Bottom,
                 Orientation = Orientation.Horizontal,
             };
 
@@ -786,8 +786,8 @@ namespace ODTablet
         {
             Button b = new Button();
             b.Content = content;
-            b.Width = 100;
-            b.Height = 50;
+            b.Width = 120;
+            b.Height = 80;
             b.Click += reh;
             b.BorderBrush = Brushes.Black;
             b.Background = Brushes.White;
@@ -830,7 +830,7 @@ namespace ODTablet
             mbuc.Name = lens.ToString();
             
             //double ratio = 3;
-            double width = this.Width / 3;
+            double width = this.Width / 3.1;
             double ratio = width / 1920;
             mbuc.Width = 1920 * ratio;
             mbuc.Height = 1080 * ratio;

@@ -207,7 +207,6 @@ namespace ODTablet
                 DisplayBaseMap();
                 AddLayerToMap(lens);
                 LensMap.IsHitTestVisible = true;
-                
                 // MENUS
                 DisplayLensSelectionMenu();
                 DisplayRightSideMenu();
@@ -223,9 +222,12 @@ namespace ODTablet
             }
             else if (!LensCanBeActivated(lens) && RemoteLens == lens)
             {
-                DisplayRemoteLensInUseMsg();
+                //DisplayRemoteLensInUseMsg();
                 DisplayBaseMap();
                 DisplayLensSelectionMenu();
+            } else if (!CanInteract)
+            {
+                DisplayDeactivatedMsg();
             }
         }
 
@@ -245,10 +247,10 @@ namespace ODTablet
                 DisplayRightSideMenu();
 
                 // MSGS
-                DisplayDeactivatedMsg(); // TODO: REMOVE THIS WHEN DONE!
+                //DisplayDeactivatedMsg(); // TODO: REMOVE THIS WHEN DONE!
 
                 // SEND EVENTS!
-                BroadcastFreeLensEvent(aLensToKillFor); // TODO: TEST THIS!
+                BroadcastFreeLensEvent(aLensToKillFor);
                 if(CurrentAppMode == MapBoardMode.SingleLens)
                 {
                     BroadcastRemoveLensMessage(aLensToKillFor);
@@ -258,7 +260,7 @@ namespace ODTablet
 
         private bool LensCanBeActivated(LensType lens)
         {
-            return ((CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses) && RemoteLens != lens);
+            return ((CurrentAppMode == MapBoardMode.SingleLens || CurrentAppMode == MapBoardMode.MultipleLenses) && RemoteLens != lens && CanInteract);
         }
 
         private void EraseCurrentLens()
@@ -356,7 +358,7 @@ namespace ODTablet
 
             // Extent
             Lens LensToBeDisplayed = Board.GetLens(lens);
-            LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 }; // TODO: remove this!
+            //LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 };
             LensMap.Extent = LensToBeDisplayed.Extent;
             LensMap.Layers.Add(lc);
 
@@ -746,7 +748,6 @@ namespace ODTablet
         {
             Reset();
             SendCompleteTaskMsg();
-            SendResetAppMessage();
             OverviewMenu.Children.Remove(TaskCompletedBtn);
             if (!OverviewMenu.Children.Contains(StartTaskBtn))
                 OverviewMenu.Children.Add(StartTaskBtn);
@@ -1160,23 +1161,24 @@ namespace ODTablet
         private void ConfigureDevice()
         {
             // Configure device with its dimensions (mm), location in physical space (X, Y, Z in meters, from sensor), orientation (degrees), Field Of View (FOV. degrees) and name
-            double widthInMM = 750
-                , heightInMM = 500
-                , locationX = -2
-                , locationY = 3
-                , locationZ = 1;
-            string deviceType = "WallDisplay";
+            double widthInMM = 10
+                , heightInMM = 10
+                , locationX = 0
+                , locationY = 0
+                , locationZ = 0;
+            string deviceType = "BancadaDevice";
             bool stationary = true;
             SoD.ownDevice.SetDeviceInformation(widthInMM, heightInMM, locationX, locationY, locationZ, deviceType, stationary);
-            SoD.ownDevice.orientation = 300;
-            SoD.ownDevice.FOV = 180;
+            SoD.ownDevice.orientation = 0;
+            SoD.ownDevice.FOV = 360;
 
             // Name and ID of device - displayed in Locator
             // TODO: Future: possible to look for devices using name, instead of ID.
             SoD.ownDevice.ID = "69";
-            SoD.ownDevice.name = "ODTablet";
+            SoD.ownDevice.name = "BancadaDevice";
         }
 
+        bool CanInteract = false;
         private void RegisterSoDEvents()
         {
             // register for 'connect' event with io server
@@ -1185,12 +1187,6 @@ namespace ODTablet
                 Console.WriteLine("\r\nConnected...");
                 Console.WriteLine("Registering with server...\r\n");
                 SoD.RegisterDevice();  //register the device with server everytime it connects or re-connects
-            });
-
-            SoD.socket.On("string", (data) =>
-            {
-                Dictionary<string, dynamic> parsedMessage = SoD.ParseMessageIntoDictionary(data);
-                String receivedString = (String)parsedMessage["data"]["data"];
             });
 
             SoD.socket.On("dictionary", (dict) =>
@@ -1211,6 +1207,32 @@ namespace ODTablet
             SoD.socket.On("BringLensToFront", (dict) =>
             {
                 this.ProcessBringLensToFrontEvent(SoD.ParseMessageIntoDictionary(dict));
+            });
+
+            SoD.socket.On("TaskCompleted", (dict) =>
+            {
+                CanInteract = false;
+                Reset();
+            });
+
+            SoD.socket.On("TaskStarted", (dict) =>
+            {
+                CanInteract = true;
+                Reset();
+            });
+
+            SoD.socket.On("StartSingleLensMode", (dict) =>
+            {
+                CurrentAppMode = MapBoardMode.SingleLens;
+                CurrentLocalLens = LensType.None; // Should be able to assign which lens to which device?
+                Reset();
+            });
+
+            SoD.socket.On("StartMultipleLensMode", (dict) =>
+            {
+                CurrentAppMode = MapBoardMode.MultipleLenses;
+                CurrentLocalLens = LensType.None;
+                Reset();
             });
 
             // make the socket.io connection
@@ -1309,11 +1331,6 @@ namespace ODTablet
                 this.Dispatcher.Invoke((Action)(() =>
                 {
                     LensType lens = MapBoard.StringToLensType(removeMode);
-                    if (lens.Equals(LensType.All))
-                    {
-                        Reset();
-                        return;
-                    }
                     Board.RemoveLens(lens);
                 }));
             }
@@ -1391,26 +1408,13 @@ namespace ODTablet
                     DisplayStartMenu();
                     break;
                 case Key.R:
-                    MainBoardUC.ResetBoard(Board);
                     if(CurrentAppMode == MapBoardMode.Overview) RefreshInsectStack();
-                    break;
-                //case Key.A:
-                //    ActivateMBUC();
-                //    break;
-                //case Key.S:
-                //    DeactivateMBUC();
-                //    break;
-                case Key.C:
-                    //if (CurrentAppMode != MapBoardMode.None && CurrentAppMode != MapBoardMode.Overview && CurrentLens != LensType.All && CurrentLens != LensType.None)
-                    //{
-                        DisplayLensSelectionMenu();
-                    //}
                     break;
                 case Key.Q:
                     Reset();
                     if (CurrentAppMode == MapBoardMode.Overview)
                     {
-                        SendResetAppMessage();
+                        SendCompleteTaskMsg();
                     }
                     break;
                 case Key.Escape:

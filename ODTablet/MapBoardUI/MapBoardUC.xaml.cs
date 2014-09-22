@@ -143,8 +143,7 @@ namespace ODTablet.MapBoardUI
         public void UpdateZOf(LensType lens, MapBoard board)
         {
             _localBoard = board;
-            
-            // TODO: Update stack box, if present.
+
             if (_currentLens == lens)
             {
                 Grid.SetZIndex(LensMap, board.ZUIIndexOf(lens));
@@ -330,7 +329,7 @@ namespace ODTablet.MapBoardUI
             layer.ID = _currentLens.ToString();
             LensMap.Layers.Add(layer);
             
-            LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 }; // TODO: remove this!
+            //LensToBeDisplayed.Extent.SpatialReference = new SpatialReference() { WKID = 3857 }; // TODO: remove this!
             
             LensMap.Extent = LensToBeDisplayed.Extent;
 

@@ -95,7 +95,7 @@ namespace ODTablet
             ConfigureBoard();
             LoadMode(CurrentAppMode);
         }
-
+        
         # region Application Mode Menu
         private StackPanel AppModeMenu;
         private void DisplayStartMenu()
@@ -153,8 +153,6 @@ namespace ODTablet
         # endregion
         # endregion
 
-
-
         # region LensMode - SL/ML
 
         private void StartLensMode()
@@ -177,7 +175,6 @@ namespace ODTablet
         }
 
         # endregion
-
 
         # region Operations with Lenses - SL and ML
 
@@ -687,12 +684,6 @@ namespace ODTablet
 
         # endregion
 
-
-
-
-
-
-
         # region OverviewMode
 
         private StackPanel InsectStack;
@@ -714,6 +705,20 @@ namespace ODTablet
             DisplayOverviewMenu();
         }
 
+        private void ClearUI()
+        {
+            RemoveAllInsects();
+
+            for (int i = 0; i < LayoutRoot.Children.Count; i++)
+            {
+                if (LayoutRoot.Children[i] is MapBoardUC)
+                {
+                    ((MapBoardUC)LayoutRoot.Children[i]).ClearUI();
+                    ((MapBoardUC)LayoutRoot.Children[i]).MapExtentUpdated -= MBUC_ExtentUpdated;
+                }
+            }
+            LayoutRoot.Children.Clear();
+        }
 
         private StackPanel OverviewMenu;
         Button StartTaskBtn, TaskCompletedBtn;
@@ -790,7 +795,6 @@ namespace ODTablet
         
         # endregion
 
-
         # region MainBoardUserControl
 
         MapBoardUC MainBoardUC;
@@ -813,7 +817,6 @@ namespace ODTablet
             LayoutRoot.Children.Add(MainBoardUC);
         }
         # endregion
-
 
         #region InsectStack
         
@@ -1089,7 +1092,6 @@ namespace ODTablet
 
         #endregion
 
-
         # region Board Event Handlers
         void Board_LensStackPositionChanged(object sender, LensEventArgs e)
         {
@@ -1129,22 +1131,6 @@ namespace ODTablet
         }
 
         #endregion
-
-
-        private void ClearUI()
-        {
-            RemoveAllInsects();
-
-            for (int i = 0; i < LayoutRoot.Children.Count; i++)
-            {
-                if (LayoutRoot.Children[i] is MapBoardUC)
-                {
-                    ((MapBoardUC)LayoutRoot.Children[i]).ClearUI();
-                    ((MapBoardUC)LayoutRoot.Children[i]).MapExtentUpdated -= MBUC_ExtentUpdated;
-                }
-            }
-            LayoutRoot.Children.Clear();
-        }
 
         # region SoD
 
@@ -1221,7 +1207,7 @@ namespace ODTablet
 
             SoD.socket.On("StartSingleLensMode", (dict) =>
             {
-                this.StartSingleLensModeEvent();
+                this.StartSingleLensModeEvent(SoD.ParseMessageIntoDictionary(dict));
             });
 
             SoD.socket.On("StartMultipleLensMode", (dict) =>
@@ -1237,7 +1223,7 @@ namespace ODTablet
         # endregion
 
         # region Remote I/O
-        #region Send
+        #region Output
         private void BroadcastExtent(LensType lensT, Envelope extent)
         {
             try
@@ -1352,11 +1338,7 @@ namespace ODTablet
             RemoteLens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]["lens"]);
             this.Dispatcher.Invoke((Action)(() =>
                 {
-                    if (CurrentAppMode == MapBoardMode.Overview)
-                    {
-                        //Board.BringToFront(RemoteLens);
-                    }
-                    else if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None)|| CurrentAppMode == MapBoardMode.MultipleLenses)
+                    if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None)|| CurrentAppMode == MapBoardMode.MultipleLenses)
                     {
                         DisplayLensSelectionMenu();
                         if(RemoteLens == CurrentLocalLens)
@@ -1407,12 +1389,17 @@ namespace ODTablet
             }));
         }
 
-        private void StartSingleLensModeEvent()
+        private void StartSingleLensModeEvent(Dictionary<string, dynamic> parsedMessage)
         {
+            LensType lens = LensType.None;
+            if (parsedMessage["data"]["data"] != null)
+            {
+                lens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]);
+            }
             this.Dispatcher.Invoke((Action)(() =>
             {
                 CurrentAppMode = MapBoardMode.SingleLens;
-                CurrentLocalLens = LensType.None; // Should be able to assign which lens to which device?
+                CurrentLocalLens = lens;
                 Reset();
             }));
         }
@@ -1430,7 +1417,6 @@ namespace ODTablet
         #endregion
 
         # endregion
-
 
         private void KeyEvent(object sender, KeyEventArgs e) //Keyup Event 
         {

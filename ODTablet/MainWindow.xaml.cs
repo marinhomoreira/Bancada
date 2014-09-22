@@ -1198,13 +1198,19 @@ namespace ODTablet
                 this.ProcessDictionary(SoD.ParseMessageIntoDictionary(dict));
             });
 
-            SoD.socket.On("LensStarted", (dict) => {
+            SoD.socket.On("LensStarted", (dict) =>
+            {
                 this.RemoteLensStarted(SoD.ParseMessageIntoDictionary(dict));
             });
             
             SoD.socket.On("FreedLens", (dict) =>
             {
                 this.RemoteLensWasFreed(SoD.ParseMessageIntoDictionary(dict));
+            });
+
+            SoD.socket.On("BringLensToFront", (dict) =>
+            {
+                this.ProcessBringLensToFrontEvent(SoD.ParseMessageIntoDictionary(dict));
             });
 
             // make the socket.io connection
@@ -1313,6 +1319,16 @@ namespace ODTablet
             }
         }
 
+        private void ProcessBringLensToFrontEvent(Dictionary<string, dynamic> parsedMessage)
+        {
+            Console.WriteLine("EVENT B2F: "+parsedMessage["data"]);
+            LensType l = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]);
+            this.Dispatcher.Invoke((Action)(() =>
+                {
+                    Board.BringToFront(l);
+                }));
+        }
+
         private void RemoteLensStarted(Dictionary<string, dynamic> parsedMessage)
         {
             RemoteLens = MapBoard.StringToLensType((String)parsedMessage["data"]["data"]["lens"]);
@@ -1320,7 +1336,7 @@ namespace ODTablet
                 {
                     if (CurrentAppMode == MapBoardMode.Overview)
                     {
-                        Board.BringToFront(RemoteLens);
+                        //Board.BringToFront(RemoteLens);
                     }
                     else if ((CurrentAppMode == MapBoardMode.SingleLens && CurrentLocalLens == LensType.None)|| CurrentAppMode == MapBoardMode.MultipleLenses)
                     {

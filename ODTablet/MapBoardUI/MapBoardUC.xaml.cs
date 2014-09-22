@@ -158,6 +158,7 @@ namespace ODTablet.MapBoardUI
             {
                 UpdateViewFinderZ(lens);
             }
+            RefreshAllViewFinders();
         }
 
         public void Remove(LensType lens, MapBoard board)
@@ -526,7 +527,6 @@ namespace ODTablet.MapBoardUI
 
             return dict;
         }
-
 
         protected virtual void OnMapExtentChanged(MapEventArgs e)
         {

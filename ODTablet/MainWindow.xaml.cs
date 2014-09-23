@@ -1430,6 +1430,7 @@ namespace ODTablet
             this.Dispatcher.Invoke((Action)(() =>
             {
                 CanInteract = false;
+                RemoteLens = LensType.None;
                 Reset();
             }));
         }

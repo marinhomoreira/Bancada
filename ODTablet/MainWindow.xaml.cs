@@ -1402,7 +1402,7 @@ namespace ODTablet
                     }
                     else if (CurrentAppMode == MapBoardMode.Overview)
                     {
-                        Board.BringToFront(RemoteLens);
+                        //Board.BringToFront(RemoteLens);
                     }
                 }));
         }

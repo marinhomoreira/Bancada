@@ -830,8 +830,11 @@ namespace ODTablet
             mbuc.Name = lens.ToString();
             
             //double ratio = 3;
-            double width = this.Width / 3.1;
-            double ratio = width / 1920;
+            double width = this.ActualWidth / 3.1;
+            double height = this.ActualHeight / 3.1;
+            double wR = width / 1920;
+            double hR = height / 1080;
+            double ratio = wR >= hR ? hR : wR;
             mbuc.Width = 1920 * ratio;
             mbuc.Height = 1080 * ratio;
             mbuc.PassiveMode = true;
@@ -984,7 +987,6 @@ namespace ODTablet
                 Dictionary<string, Point> lensCoord = MainBoardUC.GetScreenCoordinatesOf(lens);
                 if (lensCoord.ContainsKey("topLeft"))
                 {
-
                     int i = GetInsectIndex(lens);
                     MapBoardUC mbuc = (MapBoardUC)InsectStack.Children[i];
                     Point p = mbuc.TranslatePoint(new Point(0, 0), this);
@@ -1492,7 +1494,11 @@ namespace ODTablet
                 case Key.R:
                     if(CurrentAppMode == MapBoardMode.Overview) RefreshInsectStack();
                     break;
-                case Key.Q:
+                case Key.S:
+                    TaskStartedEvent();
+                    SendStartTaskMsg();
+                    break;
+                case Key.C:
                     Reset();
                     if (CurrentAppMode == MapBoardMode.Overview)
                     {

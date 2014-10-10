@@ -28,7 +28,6 @@ namespace ODTablet
     /// </summary>
     public partial class MainWindow : Window
     {
-
         private MapBoardMode CurrentAppMode = MapBoardMode.None;
         private MapBoard Board;
 
@@ -1269,7 +1268,13 @@ namespace ODTablet
             {
                 this.StartMultipleLensModeEvent();
             });
+            
+            SoD.socket.On("Reset", (dict) =>
+            {
+                this.ResetEvent();
+            });
         }
+
 
 
         # endregion
@@ -1455,9 +1460,21 @@ namespace ODTablet
             }
             this.Dispatcher.Invoke((Action)(() =>
             {
-                CurrentAppMode = MapBoardMode.SingleLens;
-                CurrentLocalLens = lens;
-                Reset();
+                if(CurrentAppMode != MapBoardMode.None)
+                {
+                    CurrentAppMode = MapBoardMode.SingleLens;
+                    CurrentLocalLens = lens;
+                    Reset();
+                }
+                else
+                {
+                    LoadMode(MapBoardMode.SingleLens);
+                    CurrentLocalLens = lens;
+                    Reset();
+                }
+
+                
+
             }));
         }
 
@@ -1465,8 +1482,16 @@ namespace ODTablet
         {
             this.Dispatcher.Invoke((Action)(() =>
             {
-                CurrentAppMode = MapBoardMode.MultipleLenses;
+                LoadMode(MapBoardMode.MultipleLenses);
                 CurrentLocalLens = LensType.None;
+                Reset();
+            }));
+        }
+
+        private void ResetEvent()
+        {
+            this.Dispatcher.Invoke((Action)(() =>
+            {
                 Reset();
             }));
         }

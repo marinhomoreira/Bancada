@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace ODTablet.MapModel
 {
 
-    public enum MapBoardMode {None, Overview, SingleLens, MultipleLenses };
+    public enum MapBoardMode { None, Overview, SingleLens, MultipleLenses };
     public enum LensType { None, All, Satellite, Streets, Population, ElectoralDistricts, Cities, Basemap };
 
 

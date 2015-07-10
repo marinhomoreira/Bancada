@@ -34,8 +34,12 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="ESRI.ArcGIS.Client, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL" />
-    <Reference Include="ESRI.ArcGIS.Client.Toolkit, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL" />
+    <Reference Include="ESRI.ArcGIS.Client, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL">
+      <HintPath>libs\ESRI.ArcGIS.Client.dll</HintPath>
+    </Reference>
+    <Reference Include="ESRI.ArcGIS.Client.Toolkit, Version=10.2.3.0, Culture=neutral, PublicKeyToken=29c6dd6e8553d944, processorArchitecture=MSIL">
+      <HintPath>libs\ESRI.ArcGIS.Client.Toolkit.dll</HintPath>
+    </Reference>
     <Reference Include="Newtonsoft.Json, Version=4.5.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>libs\Newtonsoft.Json.dll</HintPath>

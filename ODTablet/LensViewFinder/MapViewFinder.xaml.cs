@@ -24,34 +24,64 @@ namespace ODTablet.LensViewFinder
     /// </summary>
     public partial class MapViewFinder : UserControl
     {
-        private Point _begin;
-        private Point _current;
-        private Cursor _cursor = null;
-        private bool _isdrag = false;
+        private Envelope _extent;
 
-        public MapViewFinder()
-            : this(Colors.Black)
-        {
-        }
-
-        public MapViewFinder(Color BorderColor)
+        public MapViewFinder(Color BorderColor, Envelope extent)
         {
             InitializeComponent();
+            
             this.MagShadow.Stroke = new SolidColorBrush(BorderColor);
+            _extent = extent;
+            UpdateWindow();
         }
 
+        public void Refresh()
+        {
+            UpdateWindow();
+        }
+
+        #region UpdateExtent
+        public void UpdateExtent(Envelope extent)
+        {
+            _extent = extent;
+            UpdateWindow();
+        }
+
+        private void UpdateExtent(string p) // TODO: public for update from SoD? 
+        {
+            if (p != null)
+            {
+                double[] extent = ExtentStringToArray(p);
+                Envelope ext = new Envelope()
+                {
+                    XMin = extent[0],
+                    YMin = extent[1],
+                    XMax = extent[2],
+                    YMax = extent[3],
+                    SpatialReference = new SpatialReference() { WKID = 3857 }
+                };
+                this.UpdateExtent(ext);
+            }
+        }
+        #endregion
+
+
+
+        #region Properties
         public static readonly DependencyProperty MapProperty =
             DependencyProperty.Register(
                 "Map",
                 typeof(Map),
                 typeof(MapViewFinder),
                 new PropertyMetadata(MapViewFinder.OnMapPropertyChanged));
+        
         public static readonly DependencyProperty LayersProperty =
             DependencyProperty.RegisterAttached(
                 "Layers",
                 typeof(LayerCollection),
                 typeof(MapViewFinder),
                 new PropertyMetadata(MapViewFinder.OnLayersPropertyChanged));
+        
         public Map Map
         {
             get { return (Map)this.GetValue(MapProperty); }
@@ -62,7 +92,16 @@ namespace ODTablet.LensViewFinder
             get { return (LayerCollection)GetValue(LayersProperty); }
             set { SetValue(LayersProperty, value); }
         }
+        public Envelope Extent
+        {
+            get { return _extent; }
+            set { _extent = value; UpdateWindow(); }
+        }
+        #endregion
 
+
+
+        # region Events
         private static void OnLayersPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             MapViewFinder MapViewFinder = d as MapViewFinder;
@@ -77,54 +116,55 @@ namespace ODTablet.LensViewFinder
             Map mapOld = e.OldValue as Map;
             if (mapOld != null)
             {
+                //mapOld.ExtentChanging -= glass.Map_ExtentChanged;
                 mapOld.ExtentChanged -= glass.Map_ExtentChanged;
             }
             Map mapNew = e.NewValue as Map;
             if (mapNew != null)
             {
+                //mapNew.ExtentChanging += glass.Map_ExtentChanged;
                 mapNew.ExtentChanged += glass.Map_ExtentChanged;
             }
         }
-
-        // TODO: REMOVE?
         private void Map_ExtentChanged(object sender, ExtentEventArgs e)
         {
-            UpdateExtent(this.VFMap.Extent.ToString());
+            UpdateWindow();
         }
+        #endregion
 
         
 
-        public void UpdateExtent(double[] extent)
+        #region Update Window
+        private void UpdateWindow()
         {
             if (this.Visibility == Visibility.Collapsed) { return; }
             if (this.Map == null) { return; }
 
-            Envelope lensExtent = new Envelope()
-            {
-                XMin = extent[0],
-                YMin = extent[1],
-                XMax = extent[2],
-                YMax = extent[3],
-                SpatialReference = this.VFMap.SpatialReference
-            };
-
-            if(this.Map.Extent.Intersects(lensExtent))
+            Envelope lensExtent = _extent;
+            
+            if (this.Map.Extent != null && this.Map.Extent.Intersects(lensExtent))
             {
                 Envelope MapLensIntersectionExtent = lensExtent.Intersection(this.Map.Extent);
+                MapLensIntersectionExtent.SpatialReference = new SpatialReference() { WKID = 3857 };
                 try
                 {
                     ResizeWindow(MapLensIntersectionExtent);
                     TranslateVF(MapLensIntersectionExtent);
                     this.VFMap.Extent = MapLensIntersectionExtent;
+                    this.Opacity = 1;
                 }
                 catch (InvalidOperationException e)
                 {
-                    Console.WriteLine("Invalid operation exception! FAIL.");
+                    //Console.WriteLine("Invalid operation exception! FAIL: " + e.Message);
+                }
+                catch (Exception e)
+                {
+                    //Console.WriteLine("FAIL: " + e.Message);
                 }
             }
             else
             {
-                Console.WriteLine(this.Name + " was friendzoned.");
+                this.Opacity = 0;
             }
         }
 
@@ -142,7 +182,7 @@ namespace ODTablet.LensViewFinder
             this.Height = Math.Abs(VFHeight);
         }
 
-        public void TranslateVF(Envelope lensExtent)
+        private void TranslateVF(Envelope lensExtent)
         {
             MapPoint lensCenter = lensExtent.GetCenter();
             Point destiny = this.Map.MapToScreen(lensCenter);
@@ -164,20 +204,12 @@ namespace ODTablet.LensViewFinder
                 this.Translate.X += x;
                 this.Translate.Y += y;
             }
-            else
-            {
-                //Console.WriteLine("EH ADOTADO EXTENT!");
-            }
-        }
-
-        internal void UpdateExtent(string p)
-        {
-            this.UpdateExtent(ExtentStringToArray(p));
         }
 
         private double[] ExtentStringToArray(string extent)
         {
             return Array.ConvertAll(extent.Split(','), Double.Parse);
         }
+        #endregion
     }
 }

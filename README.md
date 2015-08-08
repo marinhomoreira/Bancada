@@ -16,7 +16,8 @@ Bancada was implemented in C#, using WPF. Devices communicate with each other us
 For more information, please refer to this [paper](https://dl.dropboxusercontent.com/u/961825/ase/Bancada-CMiS-ITS-2014.pdf).
 
 ## System requirements
-Windows 7+.
+* Windows 7+
+* [SoD Locator](https://github.com/ase-lab/SoD_Locator_SS)
 
 ## Installation
 Currently, you have to build and run the system using Visual Studio 13+. A bundle with an executable file is under development.
@@ -25,7 +26,8 @@ Currently, you have to build and run the system using Visual Studio 13+. A bundl
 For maximum benefit of the system, I recommended to run the overview on a computer connected to a large HD display (4K TV, wall display, or a digital tabletop); for the other modes, Microsoft Surface Pro 3 are excellent.
 
 ## Backlog
-- [ ] Improve documentation
+- [ ] Expand documentation
+- [ ] Video
 - [ ] Standalone executable file
 - [ ] Runtime configuration
 - [ ] Lib providing overview elements (insets/shadows/lenses)
